@@ -1,30 +1,63 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { InferenceProvider } from '@/contexts/InferenceContext'
+import { MCPProvider } from '@/contexts/MCPContext'
 import { InferenceTest } from '@/components/InferenceTest'
+import { MCPTest } from '@/components/MCPTest'
 import { OAuthCallback } from '@/components/OAuthCallback'
 
 function App() {
   // Simple routing based on pathname
   const pathname = window.location.pathname;
   const isInferenceOAuthCallback = pathname === '/oauth/inference/callback';
-  const isMcpOAuthCallback = pathname.startsWith('/oauth/mcp/');
+  const isMcpOAuthCallback = pathname === '/oauth/mcp/callback';
 
   if (isInferenceOAuthCallback) {
     return <OAuthCallback type="inference" />;
   }
 
   if (isMcpOAuthCallback) {
-    // Extract server identifier from path like /oauth/mcp/server123/callback
-    const serverMatch = pathname.match(/^\/oauth\/mcp\/([^\/]+)\/callback$/);
-    const serverId = serverMatch?.[1];
-    return <OAuthCallback type="mcp" serverId={serverId} />;
+    return <OAuthCallback type="mcp" />;
   }
+
+  const [activeTab, setActiveTab] = useState<'inference' | 'mcp'>('inference');
 
   return (
     <InferenceProvider>
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-        <InferenceTest />
-      </div>
+      <MCPProvider>
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+          {/* Tab Navigation */}
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div className="max-w-6xl mx-auto px-6">
+              <div className="flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('inference')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'inference'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Inference Provider Test
+                </button>
+                <button
+                  onClick={() => setActiveTab('mcp')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'mcp'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  MCP Provider Test
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'inference' && <InferenceTest />}
+          {activeTab === 'mcp' && <MCPTest />}
+        </div>
+      </MCPProvider>
     </InferenceProvider>
   )
 }

@@ -4,10 +4,9 @@ import React, { useEffect } from 'react';
 
 interface OAuthCallbackProps {
   type: 'inference' | 'mcp';
-  serverId?: string; // Required when type is 'mcp'
 }
 
-export function OAuthCallback({ type, serverId }: OAuthCallbackProps) {
+export function OAuthCallback({ type }: OAuthCallbackProps) {
   useEffect(() => {
     // Extract OAuth parameters from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -16,7 +15,8 @@ export function OAuthCallback({ type, serverId }: OAuthCallbackProps) {
     const error = urlParams.get('error');
     const errorDescription = urlParams.get('error_description');
 
-    // Send result to parent window
+    // For MCP OAuth, we just pass the callback data to the parent window
+    // The parent window (which has the MCPProvider context) will handle the actual callback processing
     if (window.opener) {
       const messageType = type === 'inference' ? 'oauth_callback' : 'mcp_oauth_callback';
       
@@ -24,14 +24,13 @@ export function OAuthCallback({ type, serverId }: OAuthCallbackProps) {
         window.opener.postMessage({
           type: messageType,
           callbackType: type,
-          serverId,
           error: errorDescription || error,
+          state,
         }, window.location.origin);
       } else if (code && state) {
         window.opener.postMessage({
           type: messageType,
           callbackType: type,
-          serverId,
           code,
           state,
         }, window.location.origin);
@@ -39,8 +38,8 @@ export function OAuthCallback({ type, serverId }: OAuthCallbackProps) {
         window.opener.postMessage({
           type: messageType,
           callbackType: type,
-          serverId,
           error: 'Invalid OAuth callback - missing code or state',
+          state,
         }, window.location.origin);
       }
 
@@ -52,7 +51,7 @@ export function OAuthCallback({ type, serverId }: OAuthCallbackProps) {
       // Fallback if not in a popup - redirect to main app
       window.location.href = '/';
     }
-  }, []);
+  }, [type]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">

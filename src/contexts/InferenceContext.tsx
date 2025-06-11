@@ -17,6 +17,7 @@ interface InferenceContextValue {
   // Provider actions
   setProvider: (provider: InferenceProvider) => void;
   clearProvider: () => void;
+  refreshAuthState: () => void; // Force refresh of auth state
 
   // Inference actions
   generateResponse: (request: InferenceRequest) => Promise<InferenceResponse>;
@@ -40,11 +41,13 @@ export function InferenceProvider({ children }: InferenceProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
+  const [authStateVersion, setAuthStateVersion] = useState(0); // Force re-renders on auth changes
 
   const setProvider = useCallback((newProvider: InferenceProvider) => {
     setProviderState(newProvider);
     setSelectedModelId(undefined);
     setError(null);
+    setAuthStateVersion(prev => prev + 1); // Trigger re-render
   }, []);
 
   const clearProvider = useCallback(() => {
@@ -54,7 +57,12 @@ export function InferenceProvider({ children }: InferenceProviderProps) {
     setProviderState(null);
     setSelectedModelId(undefined);
     setError(null);
+    setAuthStateVersion(prev => prev + 1);
   }, [provider]);
+
+  const refreshAuthState = useCallback(() => {
+    setAuthStateVersion(prev => prev + 1);
+  }, []);
 
   const generateResponse = useCallback(async (request: InferenceRequest): Promise<InferenceResponse> => {
     if (!provider) {
@@ -120,6 +128,7 @@ export function InferenceProvider({ children }: InferenceProviderProps) {
     error,
     setProvider,
     clearProvider,
+    refreshAuthState,
     generateResponse,
     selectModel,
     loadModels,

@@ -3,6 +3,7 @@ import { InferenceProvider } from '@/contexts/InferenceContext'
 import { MCPProvider } from '@/contexts/MCPContext'
 import { InferenceTest } from '@/components/InferenceTest'
 import { MCPTest } from '@/components/MCPTest'
+import { ConversationApp } from '@/components/ConversationApp'
 import { OAuthCallback } from '@/components/OAuthCallback'
 
 function App() {
@@ -19,7 +20,7 @@ function App() {
     return <OAuthCallback type="mcp" />;
   }
 
-  const [activeTab, setActiveTab] = useState<'inference' | 'mcp'>('inference');
+  const [activeTab, setActiveTab] = useState<'conversations' | 'inference' | 'mcp'>('conversations');
 
   return (
     <InferenceProvider>
@@ -29,6 +30,16 @@ function App() {
           <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div className="max-w-6xl mx-auto px-6">
               <div className="flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('conversations')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'conversations'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Conversations
+                </button>
                 <button
                   onClick={() => setActiveTab('inference')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -54,6 +65,7 @@ function App() {
           </div>
 
           {/* Tab Content */}
+          {activeTab === 'conversations' && <ConversationApp />}
           {activeTab === 'inference' && <InferenceTest />}
           {activeTab === 'mcp' && <MCPTest />}
         </div>

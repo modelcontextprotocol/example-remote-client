@@ -126,7 +126,7 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
 
 export function useAgentLoop(config: Partial<AgentLoopConfig> = {}): UseAgentLoopReturn {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
-  const { currentProvider } = useInference();
+  const { provider: currentProvider, isAuthenticated } = useInference();
   const { getAllTools, callTool: callMCPTool, connections } = useMCP();
   
   // Track running loops
@@ -255,7 +255,7 @@ export function useAgentLoop(config: Partial<AgentLoopConfig> = {}): UseAgentLoo
     conversation: Conversation,
     onUpdate: (conversation: Conversation) => void
   ) => {
-    if (!currentProvider?.isAuthenticated) {
+    if (!isAuthenticated || !currentProvider) {
       throw new Error('No authenticated inference provider available');
     }
 
@@ -397,7 +397,7 @@ export function useAgentLoop(config: Partial<AgentLoopConfig> = {}): UseAgentLoo
     } finally {
       loopStates.current.delete(conversationId);
     }
-  }, [currentProvider, finalConfig, toInferenceMessages, fromInferenceResponse, getAllTools, executeTool]);
+  }, [isAuthenticated, currentProvider, finalConfig, toInferenceMessages, fromInferenceResponse, getAllTools, executeTool]);
 
   const stopLoop = useCallback((conversationId: string) => {
     const loopState = loopStates.current.get(conversationId);

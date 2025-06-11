@@ -16,7 +16,7 @@ export function ChatInterface() {
     getAgentLoopState,
   } = useConversation();
   
-  const { currentProvider } = useInference();
+  const { provider: currentProvider, isAuthenticated } = useInference();
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

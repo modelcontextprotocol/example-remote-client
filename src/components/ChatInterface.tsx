@@ -16,7 +16,12 @@ export function ChatInterface() {
     getAgentLoopState,
   } = useConversation();
   
-  const { provider: currentProvider } = useInference();
+  const { 
+    models, 
+    selectedModel, 
+    selectModel,
+    isAuthenticated 
+  } = useInference();
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +34,7 @@ export function ChatInterface() {
   }, [activeConversation?.messages]);
 
   const handleSendMessage = async (content: string) => {
-    if (!activeConversationId || !currentProvider?.isAuthenticated) {
+    if (!activeConversationId || !isAuthenticated) {
       return;
     }
 
@@ -65,7 +70,7 @@ export function ChatInterface() {
   }
 
   // Show auth prompt if not authenticated
-  if (!currentProvider?.isAuthenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <InferenceLogin />
@@ -80,13 +85,28 @@ export function ChatInterface() {
       {/* Chat Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               {activeConversation.title}
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Model: {currentProvider.selectedModel?.name || 'None selected'}
-            </p>
+            <div className="flex items-center space-x-4 mt-1">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Model:
+              </span>
+              <select
+                value={selectedModel?.id || ''}
+                onChange={(e) => selectModel(e.target.value)}
+                disabled={isGenerating || !isAuthenticated}
+                className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-gray-100 disabled:opacity-50"
+              >
+                <option value="">Select a model</option>
+                {models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           
           {isGenerating && (

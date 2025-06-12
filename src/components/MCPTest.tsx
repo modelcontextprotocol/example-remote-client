@@ -32,8 +32,17 @@ export function MCPTest() {
       return;
     }
 
+    const trimmedName = newServerName.trim();
+    
+    // Check for duplicate server names
+    const existingServer = connections.find(conn => conn.name === trimmedName);
+    if (existingServer) {
+      alert(`A server with the name "${trimmedName}" already exists. Please choose a different name.`);
+      return;
+    }
+
     const config: MCPServerConfig = {
-      name: newServerName.trim(),
+      name: trimmedName,
       url: newServerUrl.trim(),
       transport: 'auto',
       authType: 'none',
@@ -48,7 +57,7 @@ export function MCPTest() {
       console.error('Failed to add server:', error);
       alert(`Failed to add server: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, [newServerName, newServerUrl, addMcpServer]);
+  }, [newServerName, newServerUrl, addMcpServer, connections]);
 
   const handleAddServerWithOAuth = useCallback(async () => {
     if (!newServerName.trim() || !newServerUrl.trim()) {
@@ -56,8 +65,17 @@ export function MCPTest() {
       return;
     }
 
+    const trimmedName = newServerName.trim();
+    
+    // Check for duplicate server names
+    const existingServer = connections.find(conn => conn.name === trimmedName);
+    if (existingServer) {
+      alert(`A server with the name "${trimmedName}" already exists. Please choose a different name.`);
+      return;
+    }
+
     const config: MCPServerConfig = {
-      name: newServerName.trim(),
+      name: trimmedName,
       url: newServerUrl.trim(),
       transport: 'auto',
       authType: 'oauth',
@@ -72,7 +90,7 @@ export function MCPTest() {
       console.error('Failed to add server with OAuth:', error);
       alert(`Failed to add server with OAuth: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, [newServerName, newServerUrl, addMcpServer]);
+  }, [newServerName, newServerUrl, addMcpServer, connections]);
 
   const handleRemoveServer = useCallback((connectionId: string) => {
     if (confirm('Are you sure you want to remove this server?')) {
@@ -150,6 +168,36 @@ export function MCPTest() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Add MCP Server
           </h2>
+          
+          {/* Quick Add Examples */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
+            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-3">
+              Quick Add Examples
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  setNewServerName('Everything');
+                  setNewServerUrl('https://example-server.modelcontextprotocol.io/sse');
+                }}
+                className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Everything Server
+              </button>
+              <button
+                onClick={() => {
+                  setNewServerName('Test Server');
+                  setNewServerUrl('https://localhost:3000/mcp');
+                }}
+                className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Local Test Server
+              </button>
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+              Click to auto-fill common server configurations
+            </p>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input

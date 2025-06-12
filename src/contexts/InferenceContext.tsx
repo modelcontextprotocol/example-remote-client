@@ -42,12 +42,20 @@ export function InferenceContextProvider({ children }: InferenceProviderProps) {
   const [provider, setProviderState] = useState<InferenceProvider | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(() => {
+    // Load saved model selection from localStorage
+    return localStorage.getItem('selected_model_id') || undefined;
+  });
   const [_, setAuthStateVersion] = useState(0); // Force re-renders on auth changes
 
   const setProvider = useCallback((newProvider: InferenceProvider) => {
     setProviderState(newProvider);
     setSelectedModelId(undefined);
+    
+    // Clear saved model selection when switching providers
+    // (it will be restored during loadModels if still valid)
+    localStorage.removeItem('selected_model_id');
+    
     setError(null);
     setAuthStateVersion(prev => prev + 1); // Trigger re-render
   }, []);
@@ -58,6 +66,10 @@ export function InferenceContextProvider({ children }: InferenceProviderProps) {
     }
     setProviderState(null);
     setSelectedModelId(undefined);
+    
+    // Clear saved model selection
+    localStorage.removeItem('selected_model_id');
+    
     setError(null);
     setAuthStateVersion(prev => prev + 1);
   }, [provider]);
@@ -115,6 +127,14 @@ export function InferenceContextProvider({ children }: InferenceProviderProps) {
     try {
       provider.selectModel(modelId);
       setSelectedModelId(modelId);
+      
+      // Persist model selection to localStorage
+      if (modelId) {
+        localStorage.setItem('selected_model_id', modelId);
+      } else {
+        localStorage.removeItem('selected_model_id');
+      }
+      
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to select model';
@@ -133,8 +153,22 @@ export function InferenceContextProvider({ children }: InferenceProviderProps) {
 
     try {
       const models = await provider.loadModels();
-      // Update selectedModelId to match what the provider selected as default
-      setSelectedModelId(provider.selectedModel?.id);
+      
+      // Try to restore saved model selection
+      const savedModelId = localStorage.getItem('selected_model_id');
+      if (savedModelId && models.find(m => m.id === savedModelId)) {
+        // Saved model exists in the available models, select it
+        provider.selectModel(savedModelId);
+        setSelectedModelId(savedModelId);
+      } else {
+        // Use provider's default selection or clear invalid saved selection
+        if (savedModelId && !models.find(m => m.id === savedModelId)) {
+          // Remove invalid saved model
+          localStorage.removeItem('selected_model_id');
+        }
+        setSelectedModelId(provider.selectedModel?.id);
+      }
+      
       return models;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load models';

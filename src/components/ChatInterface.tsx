@@ -22,7 +22,7 @@ export function ChatInterface() {
     selectModel,
     isAuthenticated 
   } = useInference();
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeConversation = activeConversationId ? getConversation(activeConversationId) : undefined;
@@ -38,13 +38,17 @@ export function ChatInterface() {
       return;
     }
 
-    setIsLoading(true);
+    setLoadingConversations(prev => new Set(prev).add(activeConversationId));
     try {
       await sendMessage(activeConversationId, content);
     } catch (error) {
       console.error('Failed to send message:', error);
     } finally {
-      setIsLoading(false);
+      setLoadingConversations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(activeConversationId);
+        return newSet;
+      });
     }
   };
 
@@ -78,7 +82,8 @@ export function ChatInterface() {
     );
   }
 
-  const isGenerating = agentLoopState?.isRunning || isLoading;
+  const isCurrentConversationLoading = activeConversationId ? loadingConversations.has(activeConversationId) : false;
+  const isGenerating = agentLoopState?.isRunning || isCurrentConversationLoading;
 
   return (
     <div className="flex-1 flex flex-col h-full">

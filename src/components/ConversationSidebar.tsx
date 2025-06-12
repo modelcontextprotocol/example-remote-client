@@ -1,6 +1,7 @@
 // Conversation sidebar with conversation list and management
 
 import { useConversation } from '@/contexts/ConversationContext';
+import { useInference } from '@/contexts/InferenceContext';
 
 export function ConversationSidebar() {
   const {
@@ -10,9 +11,17 @@ export function ConversationSidebar() {
     deleteConversation,
     setActiveConversation,
   } = useConversation();
+  
+  const { clearProvider, provider } = useInference();
 
   const handleNewConversation = () => {
     createConversation();
+  };
+
+  const handleLogout = () => {
+    if (confirm('Are you sure you want to log out?')) {
+      clearProvider();
+    }
   };
 
   const formatDate = (date: Date): string => {
@@ -115,6 +124,18 @@ export function ConversationSidebar() {
           </div>
         )}
       </div>
+
+      {/* Logout Button */}
+      {provider && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleLogout}
+            className="w-full px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            Log Out
+          </button>
+        </div>
+      )}
     </div>
   );
 }

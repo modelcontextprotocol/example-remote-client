@@ -20,24 +20,26 @@ export function ConversationSidebar() {
     createConversation();
   };
 
-  const handleLogout = () => {
-    if (confirm('Are you sure you want to log out? This will disconnect all MCP servers and clear your authentication.')) {
+  const handleReset = () => {
+    if (confirm('Are you sure you want to reset the application? This will clear all data including conversations, authentication, and server connections.')) {
       // Clear inference provider authentication
       clearProvider();
-      
-      // Clear MCP OAuth tokens for all connections
-      connections.forEach(connection => {
-        if (connection.authType === 'oauth') {
-          // Clear OAuth tokens and state for this connection
-          localStorage.removeItem(`mcp_oauth_tokens_${connection.id}`);
-          localStorage.removeItem(`mcp_oauth_state_${connection.id}`);
-        }
-      });
       
       // Remove all MCP servers (this will disconnect them)
       connections.forEach(connection => {
         removeMcpServer(connection.id);
       });
+      
+      // Clear all conversations
+      conversations.forEach(conversation => {
+        deleteConversation(conversation.id);
+      });
+      
+      // Clear ALL localStorage data
+      localStorage.clear();
+      
+      // Refresh the page to ensure clean state
+      window.location.reload();
     }
   };
 
@@ -142,14 +144,14 @@ export function ConversationSidebar() {
         )}
       </div>
 
-      {/* Logout Button */}
+      {/* Reset Button */}
       {provider && (
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <button
-            onClick={handleLogout}
+            onClick={handleReset}
             className="w-full px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
-            Log Out
+            Reset All Data
           </button>
         </div>
       )}

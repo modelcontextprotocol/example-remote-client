@@ -31,6 +31,9 @@ export class OpenRouterApiProvider extends InferenceProvider {
     if (config?.defaultModel) {
       // We'll set this after loading models
     }
+    
+    // Load stored API key
+    this.loadStoredApiKey();
   }
 
   get isAuthenticated(): boolean {
@@ -60,6 +63,9 @@ export class OpenRouterApiProvider extends InferenceProvider {
     try {
       // Test the API key by loading models
       await this.loadModels();
+      
+      // Store API key after successful validation
+      this.storeApiKey();
     } catch (error) {
       this._authError = error instanceof Error ? error.message : 'Authentication failed';
       this.apiKey = undefined;
@@ -72,6 +78,7 @@ export class OpenRouterApiProvider extends InferenceProvider {
     this._authError = undefined;
     this._models = [];
     this._selectedModel = undefined;
+    this.clearStoredApiKey();
   }
 
   async loadModels(): Promise<Model[]> {
@@ -151,5 +158,27 @@ export class OpenRouterApiProvider extends InferenceProvider {
 
   private isInferenceError(error: any): error is InferenceError {
     return error && typeof error === 'object' && 'type' in error && 'message' in error;
+  }
+
+  private storeApiKey(): void {
+    if (this.apiKey) {
+      localStorage.setItem('openrouter_api_key', this.apiKey);
+    }
+  }
+
+  private loadStoredApiKey(): void {
+    const storedKey = localStorage.getItem('openrouter_api_key');
+    if (storedKey) {
+      this.apiKey = storedKey;
+      // Try to load models to verify the key is still valid
+      this.loadModels().catch(() => {
+        // If loading fails, clear invalid key
+        this.logout();
+      });
+    }
+  }
+
+  private clearStoredApiKey(): void {
+    localStorage.removeItem('openrouter_api_key');
   }
 }

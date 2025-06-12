@@ -4,7 +4,7 @@ import React from 'react';
 import { useMCP } from '@/contexts/MCPContext';
 
 export function MCPStatus() {
-  const { connections, getAllTools } = useMCP();
+  const { connections, getAllTools, reconnectServer } = useMCP();
   
   const connectedServers = connections.filter(conn => conn.status === 'connected');
   const allTools = getAllTools();
@@ -89,6 +89,16 @@ export function MCPStatus() {
                         </p>
                       )}
                     </div>
+                    
+                    {(connection.status === 'failed' || connection.status === 'disconnected') && (
+                      <button
+                        onClick={() => reconnectServer(connection.id)}
+                        className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+                        title="Reconnect server"
+                      >
+                        Reconnect
+                      </button>
+                    )}
                   </div>
                   
                   {connection.tools.length > 0 && (

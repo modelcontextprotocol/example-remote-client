@@ -39,13 +39,28 @@ export function MCPProvider({ children }: MCPProviderProps) {
       try {
         const persistedData = localStorage.getItem('mcp_connections');
         if (persistedData) {
-          const persistedConfigs: MCPServerConfig[] = JSON.parse(persistedData);
+          const persistedData_parsed = JSON.parse(persistedData);
           
-          // Restore connections directly without using addMcpServer to avoid loops
-          for (const config of persistedConfigs) {
+          // Handle both old format (array of configs) and new format (array of {id, config})
+          const persistedConnections = Array.isArray(persistedData_parsed) && persistedData_parsed.length > 0
+            ? (typeof persistedData_parsed[0] === 'object' && 'config' in persistedData_parsed[0]
+                ? persistedData_parsed as {id: string, config: MCPServerConfig}[]
+                : persistedData_parsed.map((config: MCPServerConfig) => ({id: uuidv4(), config})))
+            : [];
+          
+          // Restore connections and auto-reconnect
+          for (const {id: connectionId, config} of persistedConnections) {
             try {
-              const connectionId = uuidv4();
               const manager = new MCPConnectionManager(connectionId, config);
+              
+              // Set up callback for connection state updates
+              manager.setConnectionUpdateCallback(() => {
+                setConnections(prev => 
+                  prev.map(conn => 
+                    conn.id === connectionId ? manager.getConnection() : conn
+                  )
+                );
+              });
               
               // Add to managers map
               setManagers(prev => new Map(prev).set(connectionId, manager));
@@ -53,8 +68,13 @@ export function MCPProvider({ children }: MCPProviderProps) {
               // Add initial connection state
               setConnections(prev => [...prev, manager.getConnection()]);
               
-              // Don't auto-connect during restoration - let user manually connect
-              console.log(`Restored connection config for ${config.name}`);
+              // Auto-connect on restoration
+              try {
+                await manager.connect();
+                console.log(`Auto-reconnected to ${config.name}`);
+              } catch (error) {
+                console.warn(`Failed to auto-reconnect to ${config.name}:`, error);
+              }
             } catch (error) {
               console.warn(`Failed to restore connection to ${config.name}:`, error);
             }
@@ -70,8 +90,12 @@ export function MCPProvider({ children }: MCPProviderProps) {
 
   const persistConnections = useCallback(() => {
     try {
-      const configs = connections.map(conn => conn.config);
-      localStorage.setItem('mcp_connections', JSON.stringify(configs));
+      // Store both config and connection ID to maintain OAuth token association
+      const connectionData = connections.map(conn => ({
+        id: conn.id,
+        config: conn.config
+      }));
+      localStorage.setItem('mcp_connections', JSON.stringify(connectionData));
     } catch (error) {
       console.error('Failed to persist MCP connections:', error);
     }

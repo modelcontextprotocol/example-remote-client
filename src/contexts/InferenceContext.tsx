@@ -1,12 +1,14 @@
 // React context for inference provider management
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type {
   InferenceProvider,
   InferenceRequest,
   InferenceResponse,
   Model,
 } from '@/types/inference';
+import { OpenRouterApiProvider } from '@/providers/openrouter/api-provider';
+import { OpenRouterOAuthProvider } from '@/providers/openrouter/oauth-provider';
 
 interface InferenceContextValue {
   // Current provider state
@@ -63,6 +65,27 @@ export function InferenceProvider({ children }: InferenceProviderProps) {
   const refreshAuthState = useCallback(() => {
     setAuthStateVersion(prev => prev + 1);
   }, []);
+
+  // Auto-restore provider with stored credentials on mount
+  useEffect(() => {
+    const tryRestoreProvider = async () => {
+      // Try API provider first
+      const apiProvider = new OpenRouterApiProvider();
+      if (apiProvider.isAuthenticated) {
+        setProvider(apiProvider);
+        return;
+      }
+
+      // Try OAuth provider
+      const oauthProvider = new OpenRouterOAuthProvider();
+      if (oauthProvider.isAuthenticated) {
+        setProvider(oauthProvider);
+        return;
+      }
+    };
+
+    tryRestoreProvider().catch(console.error);
+  }, [setProvider]);
 
   const generateResponse = useCallback(async (request: InferenceRequest): Promise<InferenceResponse> => {
     if (!provider) {

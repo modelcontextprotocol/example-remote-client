@@ -2,6 +2,7 @@
 
 import { useConversation } from '@/contexts/ConversationContext';
 import { useInference } from '@/contexts/InferenceContext';
+import { useMCP } from '@/contexts/MCPContext';
 
 export function ConversationSidebar() {
   const {
@@ -13,14 +14,30 @@ export function ConversationSidebar() {
   } = useConversation();
   
   const { clearProvider, provider } = useInference();
+  const { connections, removeMcpServer } = useMCP();
 
   const handleNewConversation = () => {
     createConversation();
   };
 
   const handleLogout = () => {
-    if (confirm('Are you sure you want to log out?')) {
+    if (confirm('Are you sure you want to log out? This will disconnect all MCP servers and clear your authentication.')) {
+      // Clear inference provider authentication
       clearProvider();
+      
+      // Clear MCP OAuth tokens for all connections
+      connections.forEach(connection => {
+        if (connection.authType === 'oauth') {
+          // Clear OAuth tokens and state for this connection
+          localStorage.removeItem(`mcp_oauth_tokens_${connection.id}`);
+          localStorage.removeItem(`mcp_oauth_state_${connection.id}`);
+        }
+      });
+      
+      // Remove all MCP servers (this will disconnect them)
+      connections.forEach(connection => {
+        removeMcpServer(connection.id);
+      });
     }
   };
 

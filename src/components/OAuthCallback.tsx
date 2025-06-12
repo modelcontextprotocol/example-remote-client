@@ -1,6 +1,6 @@
 // OAuth callback handler for popup-based OAuth flows
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 interface OAuthCallbackProps {
   type: 'inference' | 'mcp';

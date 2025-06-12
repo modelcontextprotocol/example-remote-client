@@ -1,6 +1,6 @@
 // Inference provider login component for inline authentication
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useInference } from '@/contexts/InferenceContext';
 import { OpenRouterApiProvider } from '@/providers/openrouter/api-provider';
 import { OpenRouterOAuthProvider } from '@/providers/openrouter/oauth-provider';

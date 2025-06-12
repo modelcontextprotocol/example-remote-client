@@ -1,6 +1,5 @@
 // Conversation sidebar with conversation list and management
 
-import React from 'react';
 import { useConversation } from '@/contexts/ConversationContext';
 
 export function ConversationSidebar() {
@@ -91,10 +90,11 @@ export function ConversationSidebar() {
                     </p>
                     {conversation.messages.length > 0 && (
                       <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 truncate">
-                        {conversation.messages[conversation.messages.length - 1]?.content?.[0]?.type === 'text' 
-                          ? conversation.messages[conversation.messages.length - 1].content[0].text
-                          : 'Tool interaction'
-                        }
+                        {(() => {
+                          const lastMessage = conversation.messages[conversation.messages.length - 1];
+                          const firstBlock = lastMessage?.content?.[0];
+                          return firstBlock?.type === 'text' ? firstBlock.text : 'Tool interaction';
+                        })()}
                       </p>
                     )}
                   </div>

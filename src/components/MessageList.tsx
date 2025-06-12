@@ -1,7 +1,6 @@
 // Message list component to display conversation messages with tool calls
 
-import React from 'react';
-import type { ConversationMessage, ToolUseBlock, ToolResultBlock } from '@/types/conversation';
+import type { ConversationMessage } from '@/types/conversation';
 
 interface MessageListProps {
   messages: ConversationMessage[];

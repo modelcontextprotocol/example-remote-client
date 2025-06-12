@@ -1,6 +1,6 @@
 // React context for conversation management and agent loop orchestration
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import type {
@@ -8,7 +8,6 @@ import type {
   ConversationMessage,
   ConversationContextValue,
   AgentLoopState,
-  ConversationContentBlock,
 } from '@/types/conversation';
 import { useAgentLoop } from '@/hooks/useAgentLoop';
 

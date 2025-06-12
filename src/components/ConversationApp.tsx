@@ -1,6 +1,6 @@
 // Main conversation application with sidebar and chat interface
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ConversationProvider } from '@/contexts/ConversationContext';
 import { ConversationSidebar } from './ConversationSidebar';
 import { ChatInterface } from './ChatInterface';

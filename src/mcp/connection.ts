@@ -5,14 +5,8 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { 
-  auth, 
-  discoverOAuthMetadata, 
-  extractResourceMetadataUrl,
-  type OAuthClientProvider,
-  type OAuthClientMetadata,
-  type OAuthClientInformation,
-  type OAuthTokens,
-  type OAuthClientInformationFull
+  auth,
+  type OAuthClientProvider
 } from '@modelcontextprotocol/sdk/client/auth.js';
 
 import type {
@@ -20,7 +14,6 @@ import type {
   MCPServerConfig,
   MCPResource,
   MCPPrompt,
-  MCPConnectionManager,
   MCPError,
 } from '@/types/mcp';
 import type { Tool } from '@/types/inference';
@@ -29,6 +22,33 @@ interface MCPOAuthState {
   codeVerifier: string;
   state: string;
   expiresAt: number;
+}
+
+// OAuth types matching the MCP SDK's internal interfaces
+interface OAuthClientMetadata {
+  redirect_uris: string[];
+  grant_types?: string[];
+  response_types?: string[];
+  client_name?: string;
+  token_endpoint_auth_method?: string;
+  scope?: string;
+  jwks_uri?: string;
+}
+
+interface OAuthClientInformation {
+  client_id: string;
+  client_secret?: string;
+  registration_access_token?: string;
+  registration_client_uri?: string;
+  client_secret_expires_at?: number;
+}
+
+interface OAuthTokens {
+  access_token: string;
+  token_type: string;
+  refresh_token?: string;
+  expires_in?: number;
+  scope?: string;
 }
 
 class MCPOAuthProvider implements OAuthClientProvider {
@@ -85,7 +105,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
     return stored ? JSON.parse(stored) : undefined;
   }
   
-  async saveClientInformation(clientInformation: OAuthClientInformationFull): Promise<void> {
+  async saveClientInformation(clientInformation: OAuthClientInformation): Promise<void> {
     console.log('Registered OAuth client for MCP server');
     const serverKey = this.getServerKey();
     localStorage.setItem(`mcp_oauth_client_${serverKey}`, JSON.stringify(clientInformation));
@@ -212,11 +232,12 @@ class MCPOAuthProvider implements OAuthClientProvider {
   }
 }
 
-export class MCPConnectionManager implements MCPConnectionManager {
+export class MCPConnectionManager {
   private connection: MCPConnection;
   private client?: Client;
   private transport?: Transport;
   private reconnectTimeout?: NodeJS.Timeout;
+  private healthCheckInterval?: NodeJS.Timeout;
   private oauthProvider?: MCPOAuthProvider;
   private onConnectionUpdate?: () => void;
 
@@ -309,6 +330,9 @@ export class MCPConnectionManager implements MCPConnectionManager {
       this.connection.lastConnected = new Date();
       this.connection.connectionAttempts = 0;
       
+      // Start health check monitoring
+      this.startHealthCheck();
+      
     } catch (error) {
       this.connection.status = 'failed';
       this.connection.error = error instanceof Error ? error.message : 'Unknown connection error';
@@ -337,6 +361,11 @@ export class MCPConnectionManager implements MCPConnectionManager {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = undefined;
+    }
+    
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
     }
     
     if (this.client) {
@@ -441,30 +470,6 @@ export class MCPConnectionManager implements MCPConnectionManager {
     }
   }
 
-  private async handleOAuthAuthentication(): Promise<void> {
-    if (!this.oauthProvider) {
-      throw new Error('OAuth provider not initialized');
-    }
-
-    console.log('Starting OAuth authentication flow...');
-    
-    try {
-      const result = await auth(this.oauthProvider, {
-        serverUrl: this.connection.url,
-        scope: this.connection.config.oauthConfig?.scope,
-      });
-      
-      if (result === 'REDIRECT') {
-        // OAuth flow was initiated via popup, no further action needed here
-        console.log('OAuth flow initiated via popup');
-      } else if (result === 'AUTHORIZED') {
-        console.log('OAuth authentication successful');
-      }
-    } catch (error) {
-      console.error('OAuth authentication failed:', error);
-      throw new Error(`OAuth authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
   private async tryStreamableHttp(): Promise<void> {
     try {
@@ -661,6 +666,60 @@ export class MCPConnectionManager implements MCPConnectionManager {
   private getBackoffDelay(): number {
     // Exponential backoff: 1s, 2s, 4s, 8s, 16s
     return Math.min(1000 * Math.pow(2, this.connection.connectionAttempts - 1), 16000);
+  }
+
+  private startHealthCheck(): void {
+    // Clear any existing health check
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+
+    // Start health check every 30 seconds
+    this.healthCheckInterval = setInterval(async () => {
+      await this.performHealthCheck();
+    }, 30000);
+    
+    console.log(`Started health check monitoring for ${this.connection.name}`);
+  }
+
+  private async performHealthCheck(): Promise<void> {
+    // Only check if we're supposed to be connected
+    if (this.connection.status !== 'connected' || !this.client) {
+      return;
+    }
+
+    try {
+      // Try to list tools as a health check - this is a lightweight operation
+      await this.client.listTools();
+      console.log(`Health check passed for ${this.connection.name}`);
+    } catch (error) {
+      console.warn(`Health check failed for ${this.connection.name}:`, error);
+      await this.handleHealthCheckFailure(error);
+    }
+  }
+
+  private async handleHealthCheckFailure(error: any): Promise<void> {
+    console.log(`Connection health check failed for ${this.connection.name}, attempting reconnection...`);
+    
+    // Stop health check during reconnection attempt
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
+
+    // Mark as disconnected and attempt reconnection
+    this.connection.status = 'connecting';
+    this.connection.error = error instanceof Error ? error.message : 'Health check failed';
+    this.notifyConnectionUpdate();
+
+    try {
+      // Attempt reconnection
+      await this.connect();
+      console.log(`Health check reconnection successful for ${this.connection.name}`);
+    } catch (reconnectError) {
+      console.error(`Health check reconnection failed for ${this.connection.name}:`, reconnectError);
+      // The connect method will handle scheduling retry attempts
+    }
   }
 
   private createMCPError(type: MCPError['type'], message: string, details?: any): MCPError {

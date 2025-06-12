@@ -9,7 +9,6 @@ import type {
   UseAgentLoopReturn,
   ConversationMessage,
   Conversation,
-  ToolUseBlock,
   ToolResultBlock,
   TestTool,
 } from '@/types/conversation';

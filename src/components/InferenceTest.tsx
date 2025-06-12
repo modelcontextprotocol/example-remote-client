@@ -1,6 +1,6 @@
 // Test UI for inference provider functionality
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useInference } from '@/contexts/InferenceContext';
 import { OpenRouterApiProvider, OpenRouterOAuthProvider } from '@/providers/openrouter';
 import type { ChatMessage, InferenceRequest } from '@/types/inference';

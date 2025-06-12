@@ -1,6 +1,6 @@
 // Main chat interface with message display and input
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useConversation } from '@/contexts/ConversationContext';
 import { useInference } from '@/contexts/InferenceContext';
 import { MessageList } from './MessageList';
@@ -16,7 +16,7 @@ export function ChatInterface() {
     getAgentLoopState,
   } = useConversation();
   
-  const { provider: currentProvider, isAuthenticated } = useInference();
+  const { provider: currentProvider } = useInference();
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

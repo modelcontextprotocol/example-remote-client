@@ -1,6 +1,6 @@
 // React context for MCP server connection management
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import type {
@@ -8,7 +8,6 @@ import type {
   MCPServerConfig,
   MCPResource,
   MCPContextValue,
-  MCPError,
 } from '@/types/mcp';
 import type { Tool } from '@/types/inference';
 import { MCPConnectionManager } from '@/mcp/connection';
@@ -158,18 +157,14 @@ export function MCPProvider({ children }: MCPProviderProps) {
           authType: config.authType,
           errorType: typeof error,
           errorConstructor: error?.constructor?.name,
-          errorMessage: error?.message,
-          errorDetails: error?.details,
-          detailsConstructor: error?.details?.constructor?.name,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
           fullError: error
         });
         
         const isUnauthorizedError = 
           config.authType === 'oauth' && (
             (error instanceof Error && error.message === 'Unauthorized') ||
-            (error instanceof Error && error.constructor.name === 'UnauthorizedError') ||
-            (error && typeof error === 'object' && error.message === 'Unauthorized' && 
-             error.details && error.details.constructor && error.details.constructor.name === 'UnauthorizedError')
+            (error instanceof Error && error.constructor.name === 'UnauthorizedError')
           );
         
         if (isUnauthorizedError) {

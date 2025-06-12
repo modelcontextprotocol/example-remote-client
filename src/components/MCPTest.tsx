@@ -1,6 +1,6 @@
 // Test UI for MCP provider functionality
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useMCP } from '@/contexts/MCPContext';
 import type { MCPServerConfig } from '@/types/mcp';
 

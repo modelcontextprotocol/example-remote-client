@@ -1,6 +1,5 @@
 // MCP status display for the conversation sidebar
 
-import React from 'react';
 import { useMCP } from '@/contexts/MCPContext';
 
 export function MCPStatus() {

@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { InferenceProvider } from '@/contexts/InferenceContext'
+import { useState } from 'react'
+import { InferenceContextProvider } from '@/contexts/InferenceContext'
 import { MCPProvider } from '@/contexts/MCPContext'
 import { InferenceTest } from '@/components/InferenceTest'
 import { MCPTest } from '@/components/MCPTest'
@@ -23,7 +23,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'conversations' | 'inference' | 'mcp'>('conversations');
 
   return (
-    <InferenceProvider>
+    <InferenceContextProvider>
       <MCPProvider>
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
           {/* Tab Navigation */}
@@ -70,7 +70,7 @@ function App() {
           {activeTab === 'mcp' && <MCPTest />}
         </div>
       </MCPProvider>
-    </InferenceProvider>
+    </InferenceContextProvider>
   )
 }
 

@@ -1,6 +1,6 @@
 // React context for inference provider management
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type {
   InferenceProvider,
   InferenceRequest,
@@ -38,12 +38,12 @@ interface InferenceProviderProps {
   children: ReactNode;
 }
 
-export function InferenceProvider({ children }: InferenceProviderProps) {
+export function InferenceContextProvider({ children }: InferenceProviderProps) {
   const [provider, setProviderState] = useState<InferenceProvider | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
-  const [authStateVersion, setAuthStateVersion] = useState(0); // Force re-renders on auth changes
+  const [_, setAuthStateVersion] = useState(0); // Force re-renders on auth changes
 
   const setProvider = useCallback((newProvider: InferenceProvider) => {
     setProviderState(newProvider);

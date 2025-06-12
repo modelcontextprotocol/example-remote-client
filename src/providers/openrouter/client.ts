@@ -38,10 +38,10 @@ export class OpenRouterClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${authToken}`,
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (this.httpReferrer) {
@@ -128,6 +128,7 @@ export class OpenRouterClient {
 
     // Check if model supports tools by looking at supported_parameters
     const supportsTools = openRouterModel.supported_parameters?.includes('tools') || false;
+    console.log(`Model ${openRouterModel.id} supports tools: ${supportsTools}`);
 
     return {
       id: openRouterModel.id,

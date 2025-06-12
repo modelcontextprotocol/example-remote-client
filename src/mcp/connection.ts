@@ -17,6 +17,7 @@ import type {
   MCPError,
 } from '@/types/mcp';
 import type { Tool } from '@/types/inference';
+import { normalizeServerName } from '@/utils/mcpUtils';
 
 interface MCPOAuthState {
   codeVerifier: string;
@@ -587,10 +588,11 @@ export class MCPConnectionManager {
 
       // Transform MCP tools to our Tool interface with name prefixing
       // Use double underscore instead of dot to comply with OpenRouter API requirements
+      const normalizedServerName = normalizeServerName(this.connection.name);
       return result.tools.map(tool => ({
         type: 'function' as const,
         function: {
-          name: `${this.connection.name}__${tool.name}`,
+          name: `${normalizedServerName}__${tool.name}`,
           description: `[${this.connection.name}] ${tool.description || ''}`,
           parameters: tool.inputSchema || {},
         },
@@ -643,8 +645,9 @@ export class MCPConnectionManager {
     }
 
     // Remove the server prefix from the tool name (using double underscore separator)
-    const unprefixedName = toolName.startsWith(`${this.connection.name}__`) 
-      ? toolName.slice(this.connection.name.length + 2)
+    const normalizedServerName = normalizeServerName(this.connection.name);
+    const unprefixedName = toolName.startsWith(`${normalizedServerName}__`) 
+      ? toolName.slice(normalizedServerName.length + 2)
       : toolName;
 
     try {

@@ -15,6 +15,7 @@ import type {
 import type { ChatMessage, Tool, ToolCall, InferenceRequest } from '@/types/inference';
 import { useInference } from '@/contexts/InferenceContext';
 import { useMCP } from '@/contexts/MCPContext';
+import { normalizeServerName } from '@/utils/mcpUtils';
 
 // Test tools that work alongside MCP tools
 const testTools: TestTool[] = [
@@ -226,17 +227,19 @@ export function useAgentLoop(config: Partial<AgentLoopConfig> = {}): UseAgentLoo
 
       // Check if it's an MCP tool (prefixed with server name using double underscore)
       if (toolCall.function.name.includes('__')) {
-        // Extract server name from tool name (format: "server__tool_name")
-        const [serverName] = toolCall.function.name.split('__');
+        // Extract normalized server name from tool name (format: "normalized_server__tool_name")
+        const [normalizedServerName] = toolCall.function.name.split('__');
         
-        // Find the connection ID for this server name
-        const connection = connections.find(conn => conn.name === serverName);
+        // Find the connection ID by comparing normalized server names
+        const connection = connections.find(conn => {
+          return normalizeServerName(conn.name) === normalizedServerName;
+        });
         
         if (connection) {
           const result = await callMCPTool(connection.id, toolCall.function.name, toolCall.function.arguments);
           return { result };
         } else {
-          throw new Error(`MCP server "${serverName}" not found or not connected`);
+          throw new Error(`MCP server with normalized name "${normalizedServerName}" not found or not connected`);
         }
       }
 

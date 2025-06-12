@@ -126,10 +126,6 @@ export class OpenRouterClient {
     const inputCost = parseFloat(openRouterModel.pricing.prompt);
     const outputCost = parseFloat(openRouterModel.pricing.completion);
 
-    // Check if model supports tools by looking at supported_parameters
-    const supportsTools = openRouterModel.supported_parameters?.includes('tools') || false;
-    console.log(`Model ${openRouterModel.id} supports tools: ${supportsTools}`);
-
     return {
       id: openRouterModel.id,
       name: openRouterModel.name,

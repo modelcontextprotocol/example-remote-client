@@ -1,38 +1,54 @@
 // Main conversation application with sidebar and chat interface
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ConversationProvider } from '@/contexts/ConversationContext';
-import { ConversationSidebar } from './ConversationSidebar';
+import { TabbedSidebar } from './TabbedSidebar';
 import { ChatInterface } from './ChatInterface';
-import { MCPStatus } from './MCPStatus';
 
 export function ConversationApp() {
-  const [showMCPStatus, setShowMCPStatus] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const isResizing = useRef(false);
+
+  const handleMouseDown = useCallback(() => {
+    isResizing.current = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing.current) return;
+    
+    const newWidth = e.clientX;
+    if (newWidth >= 240 && newWidth <= 600) {
+      setSidebarWidth(newWidth);
+    }
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isResizing.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, [handleMouseMove]);
 
   return (
     <ConversationProvider>
       <div className="h-screen flex bg-gray-100 dark:bg-gray-900">
-        {/* Left Sidebar - Conversations */}
-        <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Conversations
-              </h1>
-              <button
-                onClick={() => setShowMCPStatus(!showMCPStatus)}
-                className="text-sm px-3 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-              >
-                {showMCPStatus ? 'Hide' : 'Show'} MCP
-              </button>
-            </div>
-          </div>
+        {/* Left Sidebar - Tabbed Interface */}
+        <div 
+          className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col relative"
+          style={{ width: `${sidebarWidth}px` }}
+        >
+          <TabbedSidebar />
           
-          {showMCPStatus ? (
-            <MCPStatus />
-          ) : (
-            <ConversationSidebar />
-          )}
+          {/* Resize Handle */}
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 hover:bg-opacity-50 transition-colors"
+            onMouseDown={handleMouseDown}
+          />
         </div>
 
         {/* Main Chat Area */}

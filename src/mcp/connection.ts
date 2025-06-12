@@ -522,6 +522,7 @@ export class MCPConnectionManager {
     try {
       console.log('Initializing MCP client...');
       this.transport = transport;
+      this.transport.onmessage = console.log.bind(console, 'MCP Client message received:');
       this.client = new Client(
         {
           name: 'example-remote-client',

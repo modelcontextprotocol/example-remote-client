@@ -132,18 +132,31 @@ Built-in tools for development and testing:
 
 #### MCP Tools
 Tools from connected MCP servers are:
-- **Name-prefixed**: `${serverName}.${toolName}` to avoid conflicts
+- **Name-prefixed**: `${serverName}__${toolName}` to avoid conflicts and comply with API requirements
 - **Dynamically routed**: Tool calls extract server name and route to correct connection
 - **Auto-discovered**: Available tools update when servers connect/disconnect
 
 ```typescript
 // Tool execution routing
-if (toolCall.function.name.includes('.')) {
-  const [serverName] = toolCall.function.name.split('.');
+if (toolCall.function.name.includes('__')) {
+  const [serverName] = toolCall.function.name.split('__');
   const connection = connections.find(conn => conn.name === serverName);
   return await callMCPTool(connection.id, toolCall.function.name, toolCall.function.arguments);
 }
 ```
+
+#### Tool Naming Requirements
+
+**Important**: Tool names must comply with OpenRouter API requirements:
+- **Pattern**: Must match `^[a-zA-Z0-9_-]{1,64}$`
+- **No dots allowed**: This is why we use double underscore (`__`) as separator
+- **Length limit**: Maximum 64 characters total
+
+Example tool names:
+- ✅ `test__echo` (valid)
+- ✅ `weather_service__get_forecast` (valid) 
+- ❌ `test.echo` (invalid - contains dot)
+- ❌ `server__very_long_tool_name_that_exceeds_the_sixty_four_character_limit` (invalid - too long)
 
 ## State Management
 
@@ -384,8 +397,9 @@ Debug conversation state in browser DevTools:
 
 **Tool calls not working**
 - Verify MCP server connections in MCP Status panel
-- Check tool name prefixing for MCP tools (`server.tool_name`)
+- Check tool name prefixing for MCP tools (`server__tool_name`)
 - Ensure tool schemas match expected format
+- Verify tool names comply with API requirements (alphanumeric, underscore, hyphen only)
 
 **Conversations not persisting**
 - Check localStorage quota and permissions
@@ -396,5 +410,11 @@ Debug conversation state in browser DevTools:
 - Ensure components use context's `isAuthenticated` value
 - Verify `refreshAuthState()` is called after auth changes
 - Check React DevTools for proper context updates
+
+**Agent loop hangs with MCP tools connected**
+- Check browser console for OpenRouter API errors about tool names
+- Verify tool names don't contain dots or other invalid characters
+- Ensure tool names are under 64 characters total length
+- Look for pattern validation errors: `String should match pattern '^[a-zA-Z0-9_-]{1,64}'`
 
 This system provides a robust foundation for conversational AI with extensible tool calling capabilities, proper state management, and a clean user experience.

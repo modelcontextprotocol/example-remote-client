@@ -581,10 +581,11 @@ export class MCPConnectionManager implements MCPConnectionManager {
       const result = await this.client.listTools();
 
       // Transform MCP tools to our Tool interface with name prefixing
+      // Use double underscore instead of dot to comply with OpenRouter API requirements
       return result.tools.map(tool => ({
         type: 'function' as const,
         function: {
-          name: `${this.connection.name}.${tool.name}`,
+          name: `${this.connection.name}__${tool.name}`,
           description: `[${this.connection.name}] ${tool.description || ''}`,
           parameters: tool.inputSchema || {},
         },
@@ -636,9 +637,9 @@ export class MCPConnectionManager implements MCPConnectionManager {
       throw new Error('Client not connected');
     }
 
-    // Remove the server prefix from the tool name
-    const unprefixedName = toolName.startsWith(`${this.connection.name}.`) 
-      ? toolName.slice(this.connection.name.length + 1)
+    // Remove the server prefix from the tool name (using double underscore separator)
+    const unprefixedName = toolName.startsWith(`${this.connection.name}__`) 
+      ? toolName.slice(this.connection.name.length + 2)
       : toolName;
 
     try {

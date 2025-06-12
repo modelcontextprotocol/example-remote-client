@@ -225,10 +225,10 @@ export function useAgentLoop(config: Partial<AgentLoopConfig> = {}): UseAgentLoo
         return { result };
       }
 
-      // Check if it's an MCP tool (prefixed with server name)
-      if (toolCall.function.name.includes('.')) {
-        // Extract server name from tool name (format: "server.tool_name")
-        const [serverName] = toolCall.function.name.split('.');
+      // Check if it's an MCP tool (prefixed with server name using double underscore)
+      if (toolCall.function.name.includes('__')) {
+        // Extract server name from tool name (format: "server__tool_name")
+        const [serverName] = toolCall.function.name.split('__');
         
         // Find the connection ID for this server name
         const connection = connections.find(conn => conn.name === serverName);

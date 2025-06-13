@@ -2,6 +2,9 @@
 
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Tool } from './inference';
+import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
+import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import type { TransportSendOptions } from '@modelcontextprotocol/sdk/shared/transport.d.ts';
 
 export interface MCPServerConfig {
   name: string;                 // User-provided display name
@@ -28,6 +31,15 @@ export interface MCPMessage {
   content: any;
   error?: any;
 }
+
+// Message callback types
+export type MCPMessageCallback = (
+  connectionId: string,
+  client: Client,
+  message: JSONRPCMessage,
+  direction: 'sent' | 'received',
+  extra?: { authInfo?: AuthInfo; options?: TransportSendOptions }
+) => void;
 
 export interface MCPResource {
   uri: string;
@@ -129,4 +141,8 @@ export interface MCPContextValue {
   
   // OAuth handling
   handleOAuthCallback: (connectionId: string, authorizationCode: string) => Promise<void>;
+  
+  // Message monitoring
+  addMessageCallback: (callback: MCPMessageCallback) => string; // Returns callback ID
+  removeMessageCallback: (callbackId: string) => void;
 }

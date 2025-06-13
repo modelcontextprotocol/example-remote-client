@@ -21,7 +21,7 @@ export function ConversationApp() {
     if (!isResizing.current) return;
     
     const newWidth = e.clientX;
-    if (newWidth >= 240 && newWidth <= 600) {
+    if (newWidth >= 240 && newWidth <= window.innerWidth * 0.8) {
       setSidebarWidth(newWidth);
     }
   }, []);
@@ -39,7 +39,7 @@ export function ConversationApp() {
       <div className="h-screen flex bg-gray-100 dark:bg-gray-900">
         {/* Left Sidebar - Tabbed Interface */}
         <div 
-          className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col relative"
+          className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col relative h-full"
           style={{ width: `${sidebarWidth}px` }}
         >
           <TabbedSidebar />

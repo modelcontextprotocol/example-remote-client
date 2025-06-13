@@ -8,6 +8,7 @@ import type {
   MCPServerConfig,
   MCPResource,
   MCPContextValue,
+  MCPMessageCallback,
 } from '@/types/mcp';
 import type { Tool } from '@/types/inference';
 import { MCPConnectionManager } from '@/mcp/connection';
@@ -24,6 +25,33 @@ export function MCPProvider({ children }: MCPProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedPersisted = useRef(false);
+  
+  // Message callback management
+  const [messageCallbacks, setMessageCallbacks] = useState<Map<string, MCPMessageCallback>>(new Map());
+  const messageCallbacksRef = useRef<Map<string, MCPMessageCallback>>(new Map());
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    messageCallbacksRef.current = messageCallbacks;
+  }, [messageCallbacks]);
+
+  // Function to broadcast messages to all callbacks (stable reference)
+  const broadcastMessage = useCallback((
+    connectionId: string, 
+    client: any, 
+    message: any, 
+    direction: 'sent' | 'received', 
+    extra?: any
+  ) => {
+    console.log(`MCP Message [${direction}] from ${connectionId}:`, message); // Debug log
+    messageCallbacksRef.current.forEach(callback => {
+      try {
+        callback(connectionId, client, message, direction, extra);
+      } catch (error) {
+        console.error('Error in MCP message callback:', error);
+      }
+    });
+  }, []); // No dependencies - uses ref
 
   // Load persisted connections from localStorage on mount
   useEffect(() => {
@@ -60,6 +88,9 @@ export function MCPProvider({ children }: MCPProviderProps) {
                   )
                 );
               });
+              
+              // Set up message callback
+              manager.setMessageCallback(broadcastMessage);
               
               // Add to managers map
               setManagers(prev => new Map(prev).set(connectionId, manager));
@@ -126,6 +157,9 @@ export function MCPProvider({ children }: MCPProviderProps) {
           )
         );
       });
+      
+      // Set up message callback
+      manager.setMessageCallback(broadcastMessage);
       
       // Add to managers map
       setManagers(prev => new Map(prev).set(connectionId, manager));
@@ -336,6 +370,21 @@ export function MCPProvider({ children }: MCPProviderProps) {
     }
   }, [managers]);
 
+  // Message callback management
+  const addMessageCallback = useCallback((callback: MCPMessageCallback): string => {
+    const callbackId = uuidv4();
+    setMessageCallbacks(prev => new Map(prev).set(callbackId, callback));
+    return callbackId;
+  }, []);
+
+  const removeMessageCallback = useCallback((callbackId: string) => {
+    setMessageCallbacks(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(callbackId);
+      return newMap;
+    });
+  }, []);
+
   const contextValue: MCPContextValue = {
     connections,
     isLoading,
@@ -353,6 +402,8 @@ export function MCPProvider({ children }: MCPProviderProps) {
     getConnectionById,
     updateServerConfig,
     handleOAuthCallback,
+    addMessageCallback,
+    removeMessageCallback,
   };
 
   return (

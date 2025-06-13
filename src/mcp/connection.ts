@@ -18,6 +18,7 @@ import type {
 } from '@/types/mcp';
 import type { Tool } from '@/types/inference';
 import { normalizeServerName } from '@/utils/mcpUtils';
+import { DebugTransport } from './debugTransport';
 
 interface MCPOAuthState {
   codeVerifier: string;
@@ -107,7 +108,6 @@ class MCPOAuthProvider implements OAuthClientProvider {
   }
   
   async saveClientInformation(clientInformation: OAuthClientInformation): Promise<void> {
-    console.log('Registered OAuth client for MCP server');
     const serverKey = this.getServerKey();
     localStorage.setItem(`mcp_oauth_client_${serverKey}`, JSON.stringify(clientInformation));
   }
@@ -118,12 +118,10 @@ class MCPOAuthProvider implements OAuthClientProvider {
   }
   
   async saveTokens(tokens: OAuthTokens): Promise<void> {
-    console.log('OAuth tokens saved successfully');
     localStorage.setItem(`mcp_oauth_tokens_${this.connectionId}`, JSON.stringify(tokens));
   }
   
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
-    console.log('🔐 Starting OAuth flow in popup window...');
     
     // Open popup for OAuth flow
     const popup = window.open(
@@ -149,13 +147,10 @@ class MCPOAuthProvider implements OAuthClientProvider {
       popup.close();
 
       if (event.data.error) {
-        console.error('❌ OAuth authorization failed:', event.data.error);
         this.authError = event.data.error;
       } else if (event.data.code) {
-        console.log('✅ OAuth authorization successful, exchanging code for tokens...');
         this.processAuthorizationCode(event.data.code);
       } else {
-        console.error('❌ OAuth callback missing authorization code');
         this.authError = 'No authorization code received';
       }
     };
@@ -206,7 +201,6 @@ class MCPOAuthProvider implements OAuthClientProvider {
       });
       
       if (result === 'AUTHORIZED') {
-        console.log('🎉 OAuth authentication completed! Connecting to MCP server...');
         this.notifyOAuthComplete();
       } else {
         console.error('❌ OAuth token exchange failed');
@@ -241,6 +235,7 @@ export class MCPConnectionManager {
   private healthCheckInterval?: NodeJS.Timeout;
   private oauthProvider?: MCPOAuthProvider;
   private onConnectionUpdate?: () => void;
+  private onMessage?: (connectionId: string, client: any, message: any, direction: 'sent' | 'received', extra?: any) => void;
 
   constructor(id: string, config: MCPServerConfig) {
     this.connection = {
@@ -275,6 +270,12 @@ export class MCPConnectionManager {
     this.onConnectionUpdate = callback;
   }
 
+  // Set callback for message monitoring
+  setMessageCallback(callback: (connectionId: string, client: any, message: any, direction: 'sent' | 'received', extra?: any) => void): void {
+    console.log(`Setting message callback for connection ${this.connection.id}`); // Debug log
+    this.onMessage = callback;
+  }
+
   // Notify about connection state changes
   private notifyConnectionUpdate(): void {
     if (this.onConnectionUpdate) {
@@ -287,19 +288,6 @@ export class MCPConnectionManager {
     this.connection.error = undefined;
     
     try {
-      // Validate URL format
-      console.log('Validating URL:', this.connection.url);
-      try {
-        const url = new URL(this.connection.url);
-        console.log('URL parsed successfully:', {
-          protocol: url.protocol,
-          hostname: url.hostname,
-          pathname: url.pathname,
-          port: url.port
-        });
-      } catch (urlError) {
-        throw new Error(`Invalid URL format: ${this.connection.url}`);
-      }
       
       // Clear any existing connections
       await this.disconnect();
@@ -343,7 +331,6 @@ export class MCPConnectionManager {
       if (this.connection.config.autoReconnect !== false && 
           this.connection.connectionAttempts < (this.connection.config.maxReconnectAttempts || 5)) {
         const delay = this.getBackoffDelay();
-        console.log(`Scheduling reconnect attempt ${this.connection.connectionAttempts} in ${delay}ms`);
         this.reconnectTimeout = setTimeout(async () => {
           try {
             await this.reconnect();
@@ -397,14 +384,11 @@ export class MCPConnectionManager {
       throw new Error('OAuth provider not initialized');
     }
 
-    console.log('Processing OAuth callback with authorization code...');
     
     try {
       // If we have an active transport, use its finishAuth method
       if (this.transport && typeof (this.transport as any).finishAuth === 'function') {
-        console.log('Calling transport.finishAuth...');
         await (this.transport as any).finishAuth(authorizationCode);
-        console.log('OAuth authorization completed via transport');
         
         // Now attempt to connect - the transport should be authenticated
         await this.connect();
@@ -412,11 +396,9 @@ export class MCPConnectionManager {
         // If no transport yet, store the authorization code and try connecting
         // The transport creation will handle the auth flow
         this.oauthProvider.pendingAuthorizationCode = authorizationCode;
-        console.log('Stored authorization code, attempting connection...');
         await this.connect();
       }
       
-      console.log('OAuth callback processed successfully');
     } catch (error) {
       console.error('OAuth callback processing failed:', error);
       throw new Error(`OAuth callback failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -450,7 +432,6 @@ export class MCPConnectionManager {
 
   // Handle successful OAuth completion
   private async handleOAuthSuccess(): Promise<void> {
-    console.log('OAuth completed successfully, retrying connection...');
     
     try {
       // Reset connection state and retry
@@ -461,7 +442,6 @@ export class MCPConnectionManager {
       // Attempt to connect now that we have valid tokens
       await this.connect();
       
-      console.log('Post-OAuth connection successful!');
       this.notifyConnectionUpdate();
     } catch (error) {
       console.error('Post-OAuth connection failed:', error);
@@ -474,7 +454,6 @@ export class MCPConnectionManager {
 
   private async tryStreamableHttp(): Promise<void> {
     try {
-      console.log('Attempting StreamableHTTP connection to:', this.connection.url);
       
       // Create transport options with OAuth provider if configured
       const transportOptions: any = {};
@@ -485,7 +464,6 @@ export class MCPConnectionManager {
       
       const transport = new StreamableHTTPClientTransport(new URL(this.connection.url), transportOptions);
       await this.initializeClient(transport);
-      console.log('StreamableHTTP connection successful');
     } catch (error) {
       console.error('StreamableHTTP connection failed:', error);
       throw error;
@@ -494,7 +472,6 @@ export class MCPConnectionManager {
 
   private async trySSE(): Promise<void> {
     try {
-      console.log('Attempting SSE connection to:', this.connection.url);
       
       // Create transport options with OAuth provider if configured
       const transportOptions: any = {};
@@ -504,25 +481,17 @@ export class MCPConnectionManager {
       }
       
       const transport = new SSEClientTransport(new URL(this.connection.url), transportOptions);
-      console.log('SSE transport created, attempting client connection...');
       await this.initializeClient(transport);
-      console.log('SSE connection successful');
     } catch (error) {
-      console.error('SSE connection failed:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        url: this.connection.url
-      });
       throw error;
     }
   }
 
   private async initializeClient(transport: Transport): Promise<void> {
     try {
-      console.log('Initializing MCP client...');
-      this.transport = transport;
-      this.transport.onmessage = console.log.bind(console, 'MCP Client message received:');
+      const debugTransport = new DebugTransport(transport);
+      this.transport = debugTransport;
+      
       this.client = new Client(
         {
           name: 'example-remote-client',
@@ -532,19 +501,23 @@ export class MCPConnectionManager {
           capabilities: {},
         }
       );
-
-      console.log('Connecting client to transport...');
-      console.log('Transport type:', transport.constructor.name);
-      console.log('Transport details:', transport);
       
-      await this.client.connect(transport);
+      // Set up message callbacks to broadcast to UI after client is created
+      debugTransport.onsendmessage_ = async (message, options) => {
+        if (this.onMessage && this.client) {
+          this.onMessage(this.connection.id, this.client, message, 'sent', { options });
+        }
+      };
+      
+      debugTransport.onreceivemessage_ = (message, extra) => {
+        if (this.onMessage && this.client) {
+          this.onMessage(this.connection.id, this.client, message, 'received', extra);
+        }
+      };
+      
+      await this.client.connect(debugTransport);
       this.connection.client = this.client;
-      console.log('Client connected successfully');
     } catch (error) {
-      console.error('Client initialization failed:', error);
-      console.error('Error type:', error?.constructor?.name);
-      console.error('Error message:', error instanceof Error ? error.message : error);
-      console.error('Full error object:', error);
       throw error;
     }
   }
@@ -683,7 +656,6 @@ export class MCPConnectionManager {
       await this.performHealthCheck();
     }, 30000);
     
-    console.log(`Started health check monitoring for ${this.connection.name}`);
   }
 
   private async performHealthCheck(): Promise<void> {
@@ -695,7 +667,6 @@ export class MCPConnectionManager {
     try {
       // Try to list tools as a health check - this is a lightweight operation
       await this.client.listTools();
-      console.log(`Health check passed for ${this.connection.name}`);
     } catch (error) {
       console.warn(`Health check failed for ${this.connection.name}:`, error);
       await this.handleHealthCheckFailure(error);
@@ -703,7 +674,6 @@ export class MCPConnectionManager {
   }
 
   private async handleHealthCheckFailure(error: any): Promise<void> {
-    console.log(`Connection health check failed for ${this.connection.name}, attempting reconnection...`);
     
     // Stop health check during reconnection attempt
     if (this.healthCheckInterval) {
@@ -719,7 +689,6 @@ export class MCPConnectionManager {
     try {
       // Attempt reconnection
       await this.connect();
-      console.log(`Health check reconnection successful for ${this.connection.name}`);
     } catch (reconnectError) {
       console.error(`Health check reconnection failed for ${this.connection.name}:`, reconnectError);
       // The connect method will handle scheduling retry attempts

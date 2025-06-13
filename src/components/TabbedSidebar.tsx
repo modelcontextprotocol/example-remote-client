@@ -17,9 +17,9 @@ export function TabbedSidebar() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Tab Headers */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
         <div className="flex">
           {tabs.map((tab) => (
             <button
@@ -39,7 +39,7 @@ export function TabbedSidebar() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden min-h-0">
         {activeTab === 'mcp' && <MCPTab />}
         {activeTab === 'conversations' && <ConversationSidebar />}
         {activeTab === 'inference' && <InferenceTab />}

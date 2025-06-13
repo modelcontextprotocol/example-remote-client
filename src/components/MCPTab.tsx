@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMCP } from '@/contexts/MCPContext';
+import { MCPMessageMonitor } from './MCPMessageMonitor';
 
 export function MCPTab() {
   const { connections, addMcpServer, removeMcpServer, reconnectServer, isLoading } = useMCP();
@@ -9,6 +10,11 @@ export function MCPTab() {
   const [newServerName, setNewServerName] = useState('');
   const [newServerUrl, setNewServerUrl] = useState('');
   const [authType, setAuthType] = useState<'none' | 'oauth'>('none');
+  
+  // Collapsible section states
+  const [showSummary, setShowSummary] = useState(true);
+  const [showAddServers, setShowAddServers] = useState(true);
+  const [showServerList, setShowServerList] = useState(true);
 
   const handleAddExampleServer = async () => {
     try {
@@ -73,50 +79,75 @@ export function MCPTab() {
   const allTools = connections.flatMap(conn => conn.tools);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Summary */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-          <h3 className="font-medium text-gray-900 dark:text-white mb-2">
-            MCP Summary
-          </h3>
-          <div className="text-sm space-y-1">
-            <p className="text-gray-700 dark:text-gray-300">
-              <span className="font-medium">{connectedServers.length}</span> servers connected
-            </p>
-            <p className="text-gray-700 dark:text-gray-300">
-              <span className="font-medium">{allTools.length}</span> tools available
-            </p>
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setShowSummary(!showSummary)}
+          className="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-gray-900 dark:text-white">
+              MCP Summary
+            </h3>
+            <span className="text-gray-500 dark:text-gray-400">
+              {showSummary ? '−' : '+'}
+            </span>
           </div>
-        </div>
+        </button>
+        {showSummary && (
+          <div className="px-4 pb-4">
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+              <div className="text-sm space-y-1">
+                <p className="text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">{connectedServers.length}</span> servers connected
+                </p>
+                <p className="text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">{allTools.length}</span> tools available
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Servers Section */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="font-medium text-gray-900 dark:text-white mb-3">
-          Add Servers
-        </h3>
-        
-        {/* Example Server Button */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
         <button
-          onClick={handleAddExampleServer}
-          disabled={isLoading || connections.some(conn => conn.name === 'Example Server')}
-          className="w-full mb-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          onClick={() => setShowAddServers(!showAddServers)}
+          className="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
         >
-          {connections.some(conn => conn.name === 'Example Server') ? 'Example Server Added' : 'Add Example Server'}
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-gray-900 dark:text-white">
+              Add Servers
+            </h3>
+            <span className="text-gray-500 dark:text-gray-400">
+              {showAddServers ? '−' : '+'}
+            </span>
+          </div>
         </button>
+        {showAddServers && (
+          <div className="px-4 pb-4 space-y-3">
+            {/* Example Server Button */}
+            <button
+              onClick={handleAddExampleServer}
+              disabled={isLoading || connections.some(conn => conn.name === 'Example Server')}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {connections.some(conn => conn.name === 'Example Server') ? 'Example Server Added' : 'Add Example Server'}
+            </button>
 
-        {/* Custom Server Form Toggle */}
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="w-full px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-        >
-          {showAddForm ? 'Cancel' : 'Add Custom Server'}
-        </button>
+            {/* Custom Server Form Toggle */}
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="w-full px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              {showAddForm ? 'Cancel' : 'Add Custom Server'}
+            </button>
 
-        {/* Custom Server Form */}
-        {showAddForm && (
-          <form onSubmit={handleAddCustomServer} className="mt-3 space-y-3">
+            {/* Custom Server Form */}
+            {showAddForm && (
+              <form onSubmit={handleAddCustomServer} className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Server Name
@@ -168,15 +199,27 @@ export function MCPTab() {
             </button>
           </form>
         )}
+          </div>
+        )}
       </div>
 
       {/* Server List */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-medium text-gray-900 dark:text-white">
-            Servers ({connections.length})
-          </h3>
-        </div>
+      <div className="flex-shrink-0">
+        <button
+          onClick={() => setShowServerList(!showServerList)}
+          className="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-200 dark:border-gray-700"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-gray-900 dark:text-white">
+              Servers ({connections.length})
+            </h3>
+            <span className="text-gray-500 dark:text-gray-400">
+              {showServerList ? '−' : '+'}
+            </span>
+          </div>
+        </button>
+        {showServerList && (
+          <div className="max-h-60 overflow-y-auto p-4">
         
         {connections.length === 0 ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -258,7 +301,12 @@ export function MCPTab() {
             ))}
           </div>
         )}
+          </div>
+        )}
       </div>
+
+      {/* Message Monitor */}
+      <MCPMessageMonitor />
     </div>
   );
 }

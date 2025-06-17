@@ -1,53 +1,16 @@
 // Component to monitor and display MCP messages
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useMCP } from '@/contexts/MCPContext';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 
-interface MCPMessageEntry {
-  id: string;
-  timestamp: Date;
-  connectionId: string;
-  connectionName: string;
-  direction: 'sent' | 'received';
-  message: JSONRPCMessage;
-  extra?: any;
-}
-
 export function MCPMessageMonitor() {
-  const { addMessageCallback, removeMessageCallback, connections } = useMCP();
-  const [messages, setMessages] = useState<MCPMessageEntry[]>([]);
+  const { messages, clearMessages } = useMCP();
   const [maxMessages, setMaxMessages] = useState(50);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Remove auto-scroll - let user control scroll position
-
-  // Register message callback
-  useEffect(() => {
-    const callbackId = addMessageCallback((connectionId, _client, message, direction, extra) => {
-      const connection = connections.find(c => c.id === connectionId);
-      
-      setMessages(prev => {
-        const newMessage: MCPMessageEntry = {
-          id: `${Date.now()}-${Math.random()}`,
-          timestamp: new Date(),
-          connectionId,
-          connectionName: connection?.name || 'Unknown',
-          direction,
-          message,
-          extra,
-        };
-        
-        // Keep only the latest maxMessages
-        const newMessages = [...prev, newMessage];
-        return newMessages.slice(-maxMessages);
-      });
-    });
-
-    return () => {
-      removeMessageCallback(callbackId);
-    };
-  }, [addMessageCallback, removeMessageCallback, connections, maxMessages]);
+  // Slice messages to show only the latest maxMessages
+  const displayMessages = messages.slice(-maxMessages);
 
   const formatMessage = (msg: JSONRPCMessage) => {
     if ('method' in msg) {
@@ -74,15 +37,12 @@ export function MCPMessageMonitor() {
     return baseClass;
   };
 
-  const clearMessages = () => {
-    setMessages([]);
-  };
 
   return (
     <div className="flex-1 flex flex-col border-t border-gray-200 dark:border-gray-700 min-h-0">
       <div className="flex items-center justify-between p-4 pb-2 flex-shrink-0">
         <h3 className="font-medium text-gray-900 dark:text-white">
-          Message Monitor ({messages.length})
+          Message Monitor ({displayMessages.length})
         </h3>
         <button
           onClick={clearMessages}
@@ -93,13 +53,13 @@ export function MCPMessageMonitor() {
       </div>
 
       <div className="flex-1 mx-4 mb-2 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg">
-        {messages.length === 0 ? (
+        {displayMessages.length === 0 ? (
           <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
             No messages yet. Messages will appear here as they're sent/received.
           </div>
         ) : (
           <div className="p-2 space-y-2">
-            {messages.map((entry) => (
+            {displayMessages.map((entry) => (
               <div
                 key={entry.id}
                 className={`p-2 rounded border text-xs ${getMessageTypeColor(entry.message, entry.direction)}`}
@@ -113,7 +73,7 @@ export function MCPMessageMonitor() {
                       {formatMessage(entry.message)}
                     </span>
                     <span className="text-gray-500 dark:text-gray-400">
-                      {entry.connectionName}
+                      {entry.serverName}
                     </span>
                   </div>
                   <span className="text-gray-500 dark:text-gray-400">

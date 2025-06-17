@@ -41,6 +41,17 @@ export type MCPMessageCallback = (
   extra?: { authInfo?: AuthInfo; options?: TransportSendOptions }
 ) => void;
 
+// MCP message for storage/monitoring
+export interface MCPMonitorMessage {
+  id: string;
+  timestamp: Date;
+  connectionId: string;
+  serverName: string;
+  message: JSONRPCMessage;
+  direction: 'sent' | 'received';
+  extra?: { authInfo?: AuthInfo; options?: TransportSendOptions };
+}
+
 export interface MCPResource {
   uri: string;
   name: string;
@@ -143,6 +154,8 @@ export interface MCPContextValue {
   handleOAuthCallback: (connectionId: string, authorizationCode: string) => Promise<void>;
   
   // Message monitoring
+  messages: MCPMonitorMessage[];
   addMessageCallback: (callback: MCPMessageCallback) => string; // Returns callback ID
   removeMessageCallback: (callbackId: string) => void;
+  clearMessages: () => void;
 }

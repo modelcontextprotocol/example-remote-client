@@ -126,7 +126,7 @@ const DEFAULT_CONFIG: AgentLoopConfig = {
 
 export function useAgentLoop(config: Partial<AgentLoopConfig> = {}): UseAgentLoopReturn {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
-  const { provider: currentProvider, isAuthenticated } = useInference();
+  const { provider: currentProvider, isAuthenticated, generateResponse } = useInference();
   const { getAllTools, callTool: callMCPTool, connections } = useMCP();
   
   // Track running loops
@@ -309,7 +309,7 @@ export function useAgentLoop(config: Partial<AgentLoopConfig> = {}): UseAgentLoo
           temperature: finalConfig.temperature,
         };
 
-        const response = await currentProvider.generateResponse(request);
+        const response = await generateResponse(request);
 
         if (abortController.signal.aborted) {
           break;

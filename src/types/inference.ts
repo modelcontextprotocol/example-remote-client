@@ -1,5 +1,22 @@
 // Core inference types and interfaces
 
+// Inference message monitoring types
+export interface InferenceMessage {
+  id: string;
+  timestamp: Date;
+  type: 'request' | 'response' | 'error' | 'stream_chunk';
+  providerId: string;
+  providerName: string;
+  model?: string;
+  request?: InferenceRequest;
+  response?: InferenceResponse;
+  streamChunk?: any;
+  error?: any;
+  duration?: number; // Response time in ms
+}
+
+export type InferenceMessageCallback = (message: InferenceMessage) => void;
+
 export interface Model {
   id: string;
   name: string;
@@ -49,6 +66,8 @@ export interface Tool {
 
 export interface InferenceRequest {
   messages: ChatMessage[];
+  model?: string;
+  systemPrompt?: string;
   tools?: Tool[]; // toolChoice defaults to 'auto' when tools provided
   maxTokens?: number;
   temperature?: number;
@@ -59,6 +78,7 @@ export interface InferenceResponse {
   message: ChatMessage;
   usage: TokenUsage;
   stopReason: 'stop' | 'max_tokens' | 'tool_calls' | 'error';
+  finishReason?: string;
   error?: string;
 }
 

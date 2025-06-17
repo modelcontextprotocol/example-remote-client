@@ -9,6 +9,7 @@ import type {
   MCPResource,
   MCPContextValue,
   MCPMessageCallback,
+  MCPMonitorMessage,
 } from '@/types/mcp';
 import type { Tool } from '@/types/inference';
 import { MCPConnectionManager } from '@/mcp/connection';
@@ -25,15 +26,33 @@ export function MCPProvider({ children }: MCPProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedPersisted = useRef(false);
+  const connectionsRef = useRef<MCPConnection[]>([]);
   
   // Message callback management
   const [messageCallbacks, setMessageCallbacks] = useState<Map<string, MCPMessageCallback>>(new Map());
   const messageCallbacksRef = useRef<Map<string, MCPMessageCallback>>(new Map());
   
-  // Keep ref in sync with state
+  // Store messages for persistence
+  const [messages, setMessages] = useState<MCPMonitorMessage[]>([]);
+  const maxMessages = 100; // Keep last 100 messages
+  
+  // Keep refs in sync with state
   useEffect(() => {
     messageCallbacksRef.current = messageCallbacks;
   }, [messageCallbacks]);
+  
+  useEffect(() => {
+    connectionsRef.current = connections;
+  }, [connections]);
+
+  // Function to add a message to the stored messages
+  const addMessage = useCallback((message: MCPMonitorMessage) => {
+    setMessages(prev => {
+      const newMessages = [...prev, message];
+      // Keep only the latest maxMessages
+      return newMessages.slice(-maxMessages);
+    });
+  }, []);
 
   // Function to broadcast messages to all callbacks (stable reference)
   const broadcastMessage = useCallback((
@@ -43,7 +62,24 @@ export function MCPProvider({ children }: MCPProviderProps) {
     direction: 'sent' | 'received', 
     extra?: any
   ) => {
-    console.log(`MCP Message [${direction}] from ${connectionId}:`, message); // Debug log
+    // console.log(`MCP Message [${direction}] from ${connectionId}:`, message); // Debug log
+    
+    // Find connection name using ref to get latest state
+    const connection = connectionsRef.current.find(conn => conn.id === connectionId);
+    const serverName = connection?.name || 'Unknown Server';
+    
+    // Store message
+    const storedMessage: MCPMonitorMessage = {
+      id: uuidv4(),
+      timestamp: new Date(),
+      connectionId,
+      serverName,
+      message,
+      direction,
+      extra,
+    };
+    addMessage(storedMessage);
+    
     messageCallbacksRef.current.forEach(callback => {
       try {
         callback(connectionId, client, message, direction, extra);
@@ -51,7 +87,7 @@ export function MCPProvider({ children }: MCPProviderProps) {
         console.error('Error in MCP message callback:', error);
       }
     });
-  }, []); // No dependencies - uses ref
+  }, [addMessage]); // Only depends on addMessage, uses ref for connections
 
   // Load persisted connections from localStorage on mount
   useEffect(() => {
@@ -384,6 +420,10 @@ export function MCPProvider({ children }: MCPProviderProps) {
       return newMap;
     });
   }, []);
+  
+  const clearMessages = useCallback(() => {
+    setMessages([]);
+  }, []);
 
   const contextValue: MCPContextValue = {
     connections,
@@ -402,8 +442,10 @@ export function MCPProvider({ children }: MCPProviderProps) {
     getConnectionById,
     updateServerConfig,
     handleOAuthCallback,
+    messages,
     addMessageCallback,
     removeMessageCallback,
+    clearMessages,
   };
 
   return (

@@ -4,17 +4,24 @@ import { ConversationApp } from '@/components/ConversationApp'
 import { OAuthCallback } from '@/components/OAuthCallback'
 
 function App() {
-  // Simple routing based on pathname
-  const pathname = window.location.pathname;
-  const isInferenceOAuthCallback = pathname === '/oauth/inference/callback';
-  const isMcpOAuthCallback = pathname === '/oauth/mcp/callback';
-
-  if (isInferenceOAuthCallback) {
-    return <OAuthCallback type="inference" />;
+  // Check if this is an OAuth callback based on query parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  const state = urlParams.get('state');
+  
+  // Determine OAuth callback type from state parameter
+  let oauthType: 'inference' | 'mcp' | null = null;
+  if (code && state) {
+    // The state parameter includes the callback type
+    if (state.includes('inference:')) {
+      oauthType = 'inference';
+    } else if (state.includes('mcp:')) {
+      oauthType = 'mcp';
+    }
   }
 
-  if (isMcpOAuthCallback) {
-    return <OAuthCallback type="mcp" />;
+  if (oauthType) {
+    return <OAuthCallback type={oauthType} />;
   }
 
   return (

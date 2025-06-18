@@ -69,7 +69,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
   }
 
   get redirectUrl(): string {
-    return `${window.location.origin}/oauth/mcp/callback`;
+    return `${window.location.origin}${window.location.pathname}`;
   }
 
   get clientMetadata(): OAuthClientMetadata {
@@ -85,7 +85,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
   state(): string {
     // Encode connection ID in the state parameter for callback identification
     const randomPart = this.generateRandomString(8);
-    return `${this.connectionId}.${randomPart}`;
+    return `mcp:${this.connectionId}.${randomPart}`;
   }
 
   // Generate a consistent key for the server based on URL
@@ -141,7 +141,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
 
       // Extract connection ID from state parameter
       const state = event.data.state;
-      if (!state || !state.startsWith(this.connectionId + '.')) return;
+      if (!state || !state.startsWith(`mcp:${this.connectionId}.`)) return;
 
       window.removeEventListener('message', handleMessage);
       popup.close();

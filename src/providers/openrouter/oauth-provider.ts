@@ -33,7 +33,7 @@ export class OpenRouterOAuthProvider extends InferenceProvider {
   constructor(config?: OpenRouterOAuthConfig) {
     super();
     this.oauthConfig = {
-      redirectUri: `${window.location.origin}/oauth/inference/callback`,
+      redirectUri: `${window.location.origin}${window.location.pathname}`,
       ...config,
     };
     this.client = new OpenRouterClient(config || {});
@@ -253,7 +253,11 @@ export class OpenRouterOAuthProvider extends InferenceProvider {
     }
 
     const storedState: OAuthState = JSON.parse(storedStateJson);
-    if (storedState.state !== state || Date.now() > storedState.expiresAt) {
+    // Extract the actual state without the prefix for comparison
+    const stateWithoutPrefix = state.replace(/^inference:/, '');
+    const storedStateWithoutPrefix = storedState.state.replace(/^inference:/, '');
+    
+    if (storedStateWithoutPrefix !== stateWithoutPrefix || Date.now() > storedState.expiresAt) {
       localStorage.removeItem('openrouter_oauth_state');
       throw new Error('Invalid or expired OAuth state');
     }
@@ -319,7 +323,9 @@ export class OpenRouterOAuthProvider extends InferenceProvider {
   private generateState(): string {
     const array = new Uint8Array(16);
     crypto.getRandomValues(array);
-    return btoa(String.fromCharCode.apply(null, Array.from(array)));
+    const randomPart = btoa(String.fromCharCode.apply(null, Array.from(array)));
+    // Include callback type in state for routing
+    return `inference:${randomPart}`;
   }
 
   private storeTokens(): void {

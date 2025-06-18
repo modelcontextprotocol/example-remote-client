@@ -9,7 +9,6 @@ export function MCPTab() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newServerName, setNewServerName] = useState('');
   const [newServerUrl, setNewServerUrl] = useState('');
-  const [authType, setAuthType] = useState<'none' | 'oauth'>('none');
   
   // Collapsible section states
   const [showSummary, setShowSummary] = useState(true);
@@ -21,7 +20,6 @@ export function MCPTab() {
       await addMcpServer({
         name: 'Example Server',
         url: 'https://example-server.modelcontextprotocol.io/sse',
-        authType: 'oauth',
       });
     } catch (error) {
       console.error('Failed to add example server:', error);
@@ -36,13 +34,11 @@ export function MCPTab() {
       await addMcpServer({
         name: newServerName,
         url: newServerUrl,
-        authType,
       });
       
       // Reset form
       setNewServerName('');
       setNewServerUrl('');
-      setAuthType('none');
       setShowAddForm(false);
     } catch (error) {
       console.error('Failed to add custom server:', error);
@@ -175,21 +171,6 @@ export function MCPTab() {
                 required
               />
             </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Authentication
-              </label>
-              <select
-                value={authType}
-                onChange={(e) => setAuthType(e.target.value as 'none' | 'oauth')}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="none">None</option>
-                <option value="oauth">OAuth</option>
-              </select>
-            </div>
-
             <button
               type="submit"
               disabled={isLoading || !newServerName.trim() || !newServerUrl.trim()}

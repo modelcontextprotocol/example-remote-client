@@ -9,7 +9,6 @@ import type { TransportSendOptions } from '@modelcontextprotocol/sdk/shared/tran
 export interface MCPServerConfig {
   name: string;                 // User-provided display name
   url: string;                  // Server endpoint URL
-  transport?: 'sse' | 'streamable-http' | 'auto'; // Default: auto-detect
   authType?: 'none' | 'oauth'; // Default: none
   oauthConfig?: {
     clientId?: string;
@@ -18,7 +17,6 @@ export interface MCPServerConfig {
     scope?: string;             // OAuth scope
     redirectUri?: string;       // Override default redirect URI
   };
-  autoReconnect?: boolean;      // Default: true
   maxReconnectAttempts?: number; // Default: 5
 }
 
@@ -75,8 +73,8 @@ export interface MCPConnection {
   url: string;                   // Server URL
   status: 'connecting' | 'connected' | 'failed' | 'disconnected';
   client?: Client;               // MCP SDK client instance
-  transport: 'sse' | 'streamable-http';
-  authType: 'none' | 'oauth';
+  transport?: 'sse' | 'streamable-http';
+  authType?: 'none' | 'oauth';
   
   // Available capabilities
   tools: Tool[];                 // Tools with name-prefixed identifiers

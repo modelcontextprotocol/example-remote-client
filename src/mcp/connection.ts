@@ -4,7 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { 
+import {
   auth,
   type OAuthClientProvider
 } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -60,18 +60,18 @@ class MCPOAuthProvider implements OAuthClientProvider {
   pendingAuthorizationCode?: string;
   authError?: string;
   private onOAuthComplete?: () => void;
-  
+
   constructor(connectionId: string, serverName: string, serverUrl: string, onOAuthComplete?: () => void) {
     this.connectionId = connectionId;
     this.serverName = serverName;
     this.serverUrl = serverUrl;
     this.onOAuthComplete = onOAuthComplete;
   }
-  
+
   get redirectUrl(): string {
     return `${window.location.origin}/oauth/mcp/callback`;
   }
-  
+
   get clientMetadata(): OAuthClientMetadata {
     return {
       redirect_uris: [this.redirectUrl],
@@ -81,13 +81,13 @@ class MCPOAuthProvider implements OAuthClientProvider {
       token_endpoint_auth_method: 'none', // Public client
     };
   }
-  
+
   state(): string {
     // Encode connection ID in the state parameter for callback identification
     const randomPart = this.generateRandomString(8);
     return `${this.connectionId}.${randomPart}`;
   }
-  
+
   // Generate a consistent key for the server based on URL
   getServerKey(): string {
     try {
@@ -106,23 +106,23 @@ class MCPOAuthProvider implements OAuthClientProvider {
     const stored = localStorage.getItem(`mcp_oauth_client_${serverKey}`);
     return stored ? JSON.parse(stored) : undefined;
   }
-  
+
   async saveClientInformation(clientInformation: OAuthClientInformation): Promise<void> {
     const serverKey = this.getServerKey();
     localStorage.setItem(`mcp_oauth_client_${serverKey}`, JSON.stringify(clientInformation));
   }
-  
+
   tokens(): OAuthTokens | undefined {
     const stored = localStorage.getItem(`mcp_oauth_tokens_${this.connectionId}`);
     return stored ? JSON.parse(stored) : undefined;
   }
-  
+
   async saveTokens(tokens: OAuthTokens): Promise<void> {
     localStorage.setItem(`mcp_oauth_tokens_${this.connectionId}`, JSON.stringify(tokens));
   }
-  
+
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
-    
+
     // Open popup for OAuth flow
     const popup = window.open(
       authorizationUrl.toString(),
@@ -138,7 +138,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.data.type !== 'mcp_oauth_callback') return;
-      
+
       // Extract connection ID from state parameter
       const state = event.data.state;
       if (!state || !state.startsWith(this.connectionId + '.')) return;
@@ -157,7 +157,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
 
     window.addEventListener('message', handleMessage);
   }
-  
+
   async saveCodeVerifier(codeVerifier: string): Promise<void> {
     const oauthState: MCPOAuthState = {
       codeVerifier,
@@ -166,22 +166,22 @@ class MCPOAuthProvider implements OAuthClientProvider {
     };
     localStorage.setItem(`mcp_oauth_state_${this.connectionId}`, JSON.stringify(oauthState));
   }
-  
+
   async codeVerifier(): Promise<string> {
     const stored = localStorage.getItem(`mcp_oauth_state_${this.connectionId}`);
     if (!stored) {
       throw new Error('No OAuth state found');
     }
-    
+
     const oauthState: MCPOAuthState = JSON.parse(stored);
     if (Date.now() > oauthState.expiresAt) {
       localStorage.removeItem(`mcp_oauth_state_${this.connectionId}`);
       throw new Error('OAuth state expired');
     }
-    
+
     return oauthState.codeVerifier;
   }
-  
+
   private generateRandomString(length: number): string {
     const array = new Uint8Array(length);
     crypto.getRandomValues(array);
@@ -199,7 +199,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
         serverUrl: this.serverUrl,
         authorizationCode,
       });
-      
+
       if (result === 'AUTHORIZED') {
         this.notifyOAuthComplete();
       } else {
@@ -230,7 +230,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
 export class MCPConnectionManager {
   private connection: MCPConnection;
   private client?: Client;
-  private transport?: Transport;
+  private transport?: Transport | StreamableHTTPClientTransport | SSEClientTransport;
   private reconnectTimeout?: NodeJS.Timeout;
   private healthCheckInterval?: NodeJS.Timeout;
   private oauthProvider?: MCPOAuthProvider;
@@ -243,22 +243,16 @@ export class MCPConnectionManager {
       name: config.name,
       url: config.url,
       status: 'disconnected',
-      transport: 'streamable-http', // Will be determined during connection
-      authType: config.authType || 'none',
       tools: [],
       resources: [],
       prompts: [],
       connectionAttempts: 0,
       config,
     };
-    
-    // Initialize OAuth provider if auth is required
-    if (this.connection.authType === 'oauth') {
-      this.oauthProvider = new MCPOAuthProvider(id, config.name, config.url, () => {
-        // Callback when OAuth completes successfully
-        this.handleOAuthSuccess();
-      });
-    }
+    this.oauthProvider = new MCPOAuthProvider(id, config.name, config.url, () => {
+      // Callback when OAuth completes successfully
+      this.handleOAuthSuccess();
+    });
   }
 
   getConnection(): MCPConnection {
@@ -272,7 +266,6 @@ export class MCPConnectionManager {
 
   // Set callback for message monitoring
   setMessageCallback(callback: (connectionId: string, client: any, message: any, direction: 'sent' | 'received', extra?: any) => void): void {
-    console.log(`Setting message callback for connection ${this.connection.id}`); // Debug log
     this.onMessage = callback;
   }
 
@@ -286,61 +279,37 @@ export class MCPConnectionManager {
   async connect(): Promise<void> {
     this.connection.status = 'connecting';
     this.connection.error = undefined;
-    
+    this.notifyConnectionUpdate();
+
     try {
-      
+
       // Clear any existing connections
       await this.disconnect();
-      
-      // Determine transport strategy
-      const transportPreference = this.connection.config.transport || 'auto';
-      
-      if (transportPreference === 'auto' || transportPreference === 'streamable-http') {
-        try {
-          await this.tryStreamableHttp();
-          this.connection.transport = 'streamable-http';
-        } catch (error) {
-          if (transportPreference === 'streamable-http') {
-            throw error; // Don't fallback if explicitly requested
-          }
-          // Try SSE fallback
-          await this.trySSE();
-          this.connection.transport = 'sse';
-        }
-      } else if (transportPreference === 'sse') {
+
+      try {
+        await this.tryStreamableHttp();
+        this.connection.transport = 'streamable-http';
+      } catch (error) {
+        // TODO: jerome - if this is a TypeError: failed to fetch, then there is likely a CORS (or 
+        // Access-Control-Expose-Headers) issue with the server.
         await this.trySSE();
         this.connection.transport = 'sse';
       }
 
       // Initialize client capabilities
       await this.initializeCapabilities();
-      
+
       this.connection.status = 'connected';
       this.connection.lastConnected = new Date();
       this.connection.connectionAttempts = 0;
-      
-      // Start health check monitoring
-      this.startHealthCheck();
-      
+      this.notifyConnectionUpdate();
+
     } catch (error) {
       this.connection.status = 'failed';
       this.connection.error = error instanceof Error ? error.message : 'Unknown connection error';
       this.connection.connectionAttempts++;
-      
-      // Schedule auto-reconnect if enabled
-      if (this.connection.config.autoReconnect !== false && 
-          this.connection.connectionAttempts < (this.connection.config.maxReconnectAttempts || 5)) {
-        const delay = this.getBackoffDelay();
-        this.reconnectTimeout = setTimeout(async () => {
-          try {
-            await this.reconnect();
-          } catch (error) {
-            console.error('Auto-reconnect failed:', error);
-            // Don't throw here to prevent uncaught promise rejection
-          }
-        }, delay);
-      }
-      
+      this.notifyConnectionUpdate();
+
       throw this.createMCPError('connection', this.connection.error, error);
     }
   }
@@ -350,12 +319,12 @@ export class MCPConnectionManager {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = undefined;
     }
-    
+
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = undefined;
     }
-    
+
     if (this.client) {
       try {
         await this.client.close();
@@ -364,7 +333,7 @@ export class MCPConnectionManager {
       }
       this.client = undefined;
     }
-    
+
     if (this.transport) {
       try {
         await this.transport.close();
@@ -373,7 +342,7 @@ export class MCPConnectionManager {
       }
       this.transport = undefined;
     }
-    
+
     this.connection.status = 'disconnected';
     this.connection.client = undefined;
   }
@@ -384,12 +353,12 @@ export class MCPConnectionManager {
       throw new Error('OAuth provider not initialized');
     }
 
-    
+
     try {
       // If we have an active transport, use its finishAuth method
       if (this.transport && typeof (this.transport as any).finishAuth === 'function') {
         await (this.transport as any).finishAuth(authorizationCode);
-        
+
         // Now attempt to connect - the transport should be authenticated
         await this.connect();
       } else {
@@ -398,7 +367,7 @@ export class MCPConnectionManager {
         this.oauthProvider.pendingAuthorizationCode = authorizationCode;
         await this.connect();
       }
-      
+
     } catch (error) {
       console.error('OAuth callback processing failed:', error);
       throw new Error(`OAuth callback failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -411,7 +380,7 @@ export class MCPConnectionManager {
       // Clear connection-specific data
       localStorage.removeItem(`mcp_oauth_tokens_${this.connection.id}`);
       localStorage.removeItem(`mcp_oauth_state_${this.connection.id}`);
-      
+
       // Note: We intentionally don't clear client information here since it's 
       // shared across connections to the same server. Use clearSharedClientData() 
       // if you need to clear the client registration for this server.
@@ -432,57 +401,36 @@ export class MCPConnectionManager {
 
   // Handle successful OAuth completion
   private async handleOAuthSuccess(): Promise<void> {
-    
+
     try {
-      // Reset connection state and retry
-      this.connection.status = 'connecting';
-      this.connection.error = undefined;
-      this.notifyConnectionUpdate();
-      
       // Attempt to connect now that we have valid tokens
       await this.connect();
-      
-      this.notifyConnectionUpdate();
     } catch (error) {
       console.error('Post-OAuth connection failed:', error);
-      this.connection.status = 'failed';
-      this.connection.error = error instanceof Error ? error.message : 'Post-OAuth connection failed';
-      this.notifyConnectionUpdate();
     }
   }
 
 
   private async tryStreamableHttp(): Promise<void> {
     try {
-      
-      // Create transport options with OAuth provider if configured
-      const transportOptions: any = {};
-      
-      if (this.connection.authType === 'oauth' && this.oauthProvider) {
-        transportOptions.authProvider = this.oauthProvider;
-      }
-      
-      const transport = new StreamableHTTPClientTransport(new URL(this.connection.url), transportOptions);
+      const transport = new StreamableHTTPClientTransport(new URL(this.connection.url), {
+        authProvider: this.oauthProvider
+      });
       await this.initializeClient(transport);
     } catch (error) {
-      console.error('StreamableHTTP connection failed:', error);
+      console.log('StreamableHTTP connection failed:', error);
       throw error;
     }
   }
 
   private async trySSE(): Promise<void> {
     try {
-      
-      // Create transport options with OAuth provider if configured
-      const transportOptions: any = {};
-      
-      if (this.connection.authType === 'oauth' && this.oauthProvider) {
-        transportOptions.authProvider = this.oauthProvider;
-      }
-      
-      const transport = new SSEClientTransport(new URL(this.connection.url), transportOptions);
+      const transport = new SSEClientTransport(new URL(this.connection.url), {
+        authProvider: this.oauthProvider
+      });
       await this.initializeClient(transport);
     } catch (error) {
+      console.log('SSE connection failed:', error);
       throw error;
     }
   }
@@ -491,7 +439,7 @@ export class MCPConnectionManager {
     try {
       const debugTransport = new DebugTransport(transport);
       this.transport = debugTransport;
-      
+
       this.client = new Client(
         {
           name: 'example-remote-client',
@@ -501,20 +449,20 @@ export class MCPConnectionManager {
           capabilities: {},
         }
       );
-      
+
       // Set up message callbacks to broadcast to UI after client is created
       debugTransport.onsendmessage_ = async (message, options) => {
         if (this.onMessage && this.client) {
           this.onMessage(this.connection.id, this.client, message, 'sent', { options });
         }
       };
-      
+
       debugTransport.onreceivemessage_ = (message, extra) => {
         if (this.onMessage && this.client) {
           this.onMessage(this.connection.id, this.client, message, 'received', extra);
         }
       };
-      
+
       await this.client.connect(debugTransport);
       this.connection.client = this.client;
     } catch (error) {
@@ -530,7 +478,7 @@ export class MCPConnectionManager {
     try {
       // Discover tools
       this.connection.tools = await this.discoverTools();
-      
+
       // Discover resources (if supported)
       try {
         this.connection.resources = await this.discoverResources();
@@ -538,7 +486,7 @@ export class MCPConnectionManager {
         // Resources not supported by this server
         this.connection.resources = [];
       }
-      
+
       // Discover prompts (if supported)
       try {
         this.connection.prompts = await this.discoverPrompts();
@@ -546,7 +494,7 @@ export class MCPConnectionManager {
         // Prompts not supported by this server
         this.connection.prompts = [];
       }
-      
+
     } catch (error) {
       throw this.createMCPError('protocol', 'Failed to initialize server capabilities', error);
     }
@@ -620,7 +568,7 @@ export class MCPConnectionManager {
 
     // Remove the server prefix from the tool name (using double underscore separator)
     const normalizedServerName = normalizeServerName(this.connection.name);
-    const unprefixedName = toolName.startsWith(`${normalizedServerName}__`) 
+    const unprefixedName = toolName.startsWith(`${normalizedServerName}__`)
       ? toolName.slice(normalizedServerName.length + 2)
       : toolName;
 
@@ -638,61 +586,6 @@ export class MCPConnectionManager {
 
   getStatus(): MCPConnection['status'] {
     return this.connection.status;
-  }
-
-  private getBackoffDelay(): number {
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-    return Math.min(1000 * Math.pow(2, this.connection.connectionAttempts - 1), 16000);
-  }
-
-  private startHealthCheck(): void {
-    // Clear any existing health check
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-    }
-
-    // Start health check every 30 seconds
-    this.healthCheckInterval = setInterval(async () => {
-      await this.performHealthCheck();
-    }, 10 * 60 * 1000); // 10 minutes
-    
-  }
-
-  private async performHealthCheck(): Promise<void> {
-    // Only check if we're supposed to be connected
-    if (this.connection.status !== 'connected' || !this.client) {
-      return;
-    }
-
-    try {
-      // Try to list tools as a health check - this is a lightweight operation
-      await this.client.ping();
-    } catch (error) {
-      console.warn(`Health check failed for ${this.connection.name}:`, error);
-      await this.handleHealthCheckFailure(error);
-    }
-  }
-
-  private async handleHealthCheckFailure(error: any): Promise<void> {
-    
-    // Stop health check during reconnection attempt
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-      this.healthCheckInterval = undefined;
-    }
-
-    // Mark as disconnected and attempt reconnection
-    this.connection.status = 'connecting';
-    this.connection.error = error instanceof Error ? error.message : 'Health check failed';
-    this.notifyConnectionUpdate();
-
-    try {
-      // Attempt reconnection
-      await this.connect();
-    } catch (reconnectError) {
-      console.error(`Health check reconnection failed for ${this.connection.name}:`, reconnectError);
-      // The connect method will handle scheduling retry attempts
-    }
   }
 
   private createMCPError(type: MCPError['type'], message: string, details?: any): MCPError {

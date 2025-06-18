@@ -654,7 +654,7 @@ export class MCPConnectionManager {
     // Start health check every 30 seconds
     this.healthCheckInterval = setInterval(async () => {
       await this.performHealthCheck();
-    }, 30000);
+    }, 10 * 60 * 1000); // 10 minutes
     
   }
 
@@ -666,7 +666,7 @@ export class MCPConnectionManager {
 
     try {
       // Try to list tools as a health check - this is a lightweight operation
-      await this.client.listTools();
+      await this.client.ping();
     } catch (error) {
       console.warn(`Health check failed for ${this.connection.name}:`, error);
       await this.handleHealthCheckFailure(error);

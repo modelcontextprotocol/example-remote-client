@@ -3,6 +3,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import {
   auth,
@@ -235,7 +236,7 @@ export class MCPConnectionManager {
   private healthCheckInterval?: NodeJS.Timeout;
   private oauthProvider?: MCPOAuthProvider;
   private onConnectionUpdate?: () => void;
-  private onMessage?: (connectionId: string, client: any, message: any, direction: 'sent' | 'received', extra?: any) => void;
+  private onMessage?: (connection: MCPConnection, client: any, message: any, direction: 'sent' | 'received', extra?: any) => void;
 
   constructor(id: string, config: MCPServerConfig) {
     this.connection = {
@@ -265,7 +266,7 @@ export class MCPConnectionManager {
   }
 
   // Set callback for message monitoring
-  setMessageCallback(callback: (connectionId: string, client: any, message: any, direction: 'sent' | 'received', extra?: any) => void): void {
+  setMessageCallback(callback: (connection: MCPConnection, client: any, message: any, direction: 'sent' | 'received', extra?: any) => void): void {
     this.onMessage = callback;
   }
 
@@ -286,14 +287,20 @@ export class MCPConnectionManager {
       // Clear any existing connections
       await this.disconnect();
 
-      try {
-        await this.tryStreamableHttp();
-        this.connection.transport = 'streamable-http';
-      } catch (error) {
-        // TODO: jerome - if this is a TypeError: failed to fetch, then there is likely a CORS (or 
-        // Access-Control-Expose-Headers) issue with the server.
-        await this.trySSE();
-        this.connection.transport = 'sse';
+      // Check if this is a local server
+      if (this.connection.url === 'local') {
+        await this.tryInMemory();
+        this.connection.transport = 'inmemory';
+      } else {
+        try {
+          await this.tryStreamableHttp();
+          this.connection.transport = 'streamable-http';
+        } catch (error) {
+          // TODO: jerome - if this is a TypeError: failed to fetch, then there is likely a CORS (or 
+          // Access-Control-Expose-Headers) issue with the server.
+          await this.trySSE();
+          this.connection.transport = 'sse';
+        }
       }
 
       // Initialize client capabilities
@@ -435,6 +442,27 @@ export class MCPConnectionManager {
     }
   }
 
+  private async tryInMemory(): Promise<void> {
+    try {
+      if (!this.connection.config.localServer) {
+        throw new Error('Local server function not provided');
+      }
+
+      // Create linked transport pair
+      const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+      
+      // Create and connect the server
+      const server = this.connection.config.localServer();
+      await server.connect(serverTransport);
+      
+      // Initialize the client with its transport
+      await this.initializeClient(clientTransport);
+    } catch (error) {
+      console.log('InMemory connection failed:', error);
+      throw error;
+    }
+  }
+
   private async initializeClient(transport: Transport): Promise<void> {
     try {
       const debugTransport = new DebugTransport(transport);
@@ -453,13 +481,13 @@ export class MCPConnectionManager {
       // Set up message callbacks to broadcast to UI after client is created
       debugTransport.onsendmessage_ = async (message, options) => {
         if (this.onMessage && this.client) {
-          this.onMessage(this.connection.id, this.client, message, 'sent', { options });
+          this.onMessage(this.connection, this.client, message, 'sent', { options });
         }
       };
 
       debugTransport.onreceivemessage_ = (message, extra) => {
         if (this.onMessage && this.client) {
-          this.onMessage(this.connection.id, this.client, message, 'received', extra);
+          this.onMessage(this.connection, this.client, message, 'received', extra);
         }
       };
 

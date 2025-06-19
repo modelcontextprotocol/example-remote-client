@@ -13,6 +13,7 @@ import type {
 } from '@/types/mcp';
 import type { Tool } from '@/types/inference';
 import { MCPConnectionManager } from '@/mcp/connection';
+import { availableServers } from '@/mcp/servers';
 
 const MCPContext = createContext<MCPContextValue | null>(null);
 
@@ -56,24 +57,18 @@ export function MCPProvider({ children }: MCPProviderProps) {
 
   // Function to broadcast messages to all callbacks (stable reference)
   const broadcastMessage = useCallback((
-    connectionId: string, 
+    connection: MCPConnection, 
     client: any, 
     message: any, 
     direction: 'sent' | 'received', 
     extra?: any
   ) => {
-    // console.log(`MCP Message [${direction}] from ${connectionId}:`, message); // Debug log
-    
-    // Find connection name using ref to get latest state
-    const connection = connectionsRef.current.find(conn => conn.id === connectionId);
-    const serverName = connection?.name || 'Unknown Server';
-    
     // Store message
     const storedMessage: MCPMonitorMessage = {
       id: uuidv4(),
       timestamp: new Date(),
-      connectionId,
-      serverName,
+      connectionId: connection.id,
+      serverName: connection?.name || 'Unknown Server',
       message,
       direction,
       extra,
@@ -82,7 +77,7 @@ export function MCPProvider({ children }: MCPProviderProps) {
     
     messageCallbacksRef.current.forEach(callback => {
       try {
-        callback(connectionId, client, message, direction, extra);
+        callback(connection.id, client, message, direction, extra);
       } catch (error) {
         console.error('Error in MCP message callback:', error);
       }
@@ -118,11 +113,12 @@ export function MCPProvider({ children }: MCPProviderProps) {
               
               // Set up callback for connection state updates
               manager.setConnectionUpdateCallback(() => {
-                setConnections(prev => 
-                  prev.map(conn => 
+                setConnections(prev => {
+                  connectionsRef.current = prev.map(conn => 
                     conn.id === connectionId ? manager.getConnection() : conn
                   )
-                );
+                  return connectionsRef.current
+                });
               });
               
               // Set up message callback
@@ -149,6 +145,50 @@ export function MCPProvider({ children }: MCPProviderProps) {
       } catch (error) {
         console.error('Failed to load persisted MCP connections:', error);
       }
+      
+      // After loading persisted connections, add local servers
+      await addLocalServers();
+    };
+
+    const addLocalServers = async () => {
+      // Check if local servers are already added
+      const hasLocalServers = connectionsRef.current.some(conn => conn.url === 'local');
+      if (hasLocalServers) {
+        return;
+      }
+
+      // Add each available local server
+      for (const serverConfig of availableServers) {
+        try {
+          const connectionId = uuidv4();
+          const manager = new MCPConnectionManager(connectionId, serverConfig);
+          
+          // Set up callback for connection state updates
+          manager.setConnectionUpdateCallback(() => {
+            setConnections(prev => {
+               connectionsRef.current = prev.map(conn => 
+                  conn.id === connectionId ? manager.getConnection() : conn
+                );
+               return connectionsRef.current;
+            });
+          });
+          
+          // Set up message callback
+          manager.setMessageCallback(broadcastMessage);
+          
+          // Add to managers map
+          setManagers(prev => new Map(prev).set(connectionId, manager));
+          
+          // Add initial connection state
+          setConnections(prev => [...prev, manager.getConnection()]);
+          
+          // Auto-connect local servers
+          await manager.connect();
+          console.log(`Connected to local server: ${serverConfig.name}`);
+        } catch (error) {
+          console.error(`Failed to connect to local server ${serverConfig.name}:`, error);
+        }
+      }
     };
 
     loadPersistedConnections();
@@ -157,7 +197,7 @@ export function MCPProvider({ children }: MCPProviderProps) {
   const persistConnections = useCallback(() => {
     try {
       // Store both config and connection ID to maintain OAuth token association
-      const connectionData = connections.map(conn => ({
+      const connectionData = connections.filter(conn => conn.url !== 'local').map(conn => ({
         id: conn.id,
         config: conn.config
       }));

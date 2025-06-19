@@ -8,7 +8,7 @@ import type { TransportSendOptions } from '@modelcontextprotocol/sdk/shared/tran
 
 export interface MCPServerConfig {
   name: string;                 // User-provided display name
-  url: string;                  // Server endpoint URL
+  url: string;                  // Server endpoint URL (or 'local' for in-memory servers)
   authType?: 'none' | 'oauth'; // Default: none
   oauthConfig?: {
     clientId?: string;
@@ -18,6 +18,7 @@ export interface MCPServerConfig {
     redirectUri?: string;       // Override default redirect URI
   };
   maxReconnectAttempts?: number; // Default: 5
+  localServer?: () => any;      // Function to create the local server instance (when url === 'local')
 }
 
 export interface MCPMessage {
@@ -73,7 +74,7 @@ export interface MCPConnection {
   url: string;                   // Server URL
   status: 'connecting' | 'connected' | 'failed' | 'disconnected';
   client?: Client;               // MCP SDK client instance
-  transport?: 'sse' | 'streamable-http';
+  transport?: 'sse' | 'streamable-http' | 'inmemory';
   authType?: 'none' | 'oauth';
   
   // Available capabilities

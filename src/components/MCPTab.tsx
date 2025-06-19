@@ -222,6 +222,11 @@ export function MCPTab() {
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {connection.name}
                       </h4>
+                      {connection.url === 'local' && (
+                        <span className="px-1.5 py-0.5 text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 rounded">
+                          In-Memory
+                        </span>
+                      )}
                     </div>
                     <p className={`text-xs mt-1 ${getStatusColor(connection.status)}`}>
                       {connection.status}

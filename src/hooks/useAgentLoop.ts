@@ -51,36 +51,6 @@ const testTools: TestTool[] = [
   {
     type: 'function',
     function: {
-      name: 'calculate',
-      description: 'Perform basic arithmetic calculations',
-      parameters: {
-        type: 'object',
-        properties: {
-          expression: {
-            type: 'string',
-            description: 'Mathematical expression to evaluate (e.g., "2 + 2", "10 * 3")',
-          },
-        },
-        required: ['expression'],
-      },
-    },
-    execute: async (args) => {
-      try {
-        // Simple expression evaluator (basic safety check)
-        const expression = args.expression.replace(/[^0-9+\-*/().\s]/g, '');
-        if (expression !== args.expression) {
-          throw new Error('Invalid characters in expression');
-        }
-        const result = eval(expression);
-        return { expression: args.expression, result };
-      } catch (error) {
-        throw new Error(`Calculation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'get_current_time',
       description: 'Get the current date and time',
       parameters: {

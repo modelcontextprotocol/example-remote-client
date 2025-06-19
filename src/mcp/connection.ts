@@ -162,7 +162,7 @@ class MCPOAuthProvider implements OAuthClientProvider {
     const oauthState: MCPOAuthState = {
       codeVerifier,
       state: this.generateRandomString(16),
-      expiresAt: Date.now() + (10 * 60 * 1000), // 10 minutes
+      expiresAt: Date.now() + (5 * 60 * 1000), // 5 minutes
     };
     localStorage.setItem(`mcp_oauth_state_${this.connectionId}`, JSON.stringify(oauthState));
   }

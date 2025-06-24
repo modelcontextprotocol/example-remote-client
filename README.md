@@ -1,3 +1,5 @@
+# NOTE: this is a work in progress
+
 # Example Remote MCP Client
 
 A React TypeScript application for connecting to multiple MCP (Model Context Protocol) servers and providing a conversational interface with tool calling capabilities.

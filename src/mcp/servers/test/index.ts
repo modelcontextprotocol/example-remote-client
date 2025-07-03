@@ -12,7 +12,6 @@ export function createServer() {
     // Add an addition tool
     server.registerTool("add",
         {
-            title: "Addition Tool",
             description: "Add two numbers",
             inputSchema: { a: z.number(), b: z.number() },
         },

@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   // Set base to '/' for local testing, or to your repo name for GitHub Pages
   // e.g., base: '/example-remote-client/' for https://username.github.io/example-remote-client/
-  base: '/',
+  base: process.env.NODE_ENV === 'production' ? '/example-remote-client/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

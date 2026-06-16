@@ -95,13 +95,15 @@ interface MCPContextValue {
 
 ### Prefixing Strategy
 Tools from each server are prefixed with the user-provided server name to avoid conflicts:
+The implementation normalizes the server name and uses `__` as the separator so
+prefixed tool names stay within provider tool-name constraints that disallow dots.
 
 ```typescript
 // Original tool from weather server: "get_weather"
-// Prefixed tool: "weather_server.get_weather"
+// Prefixed tool: "weather_server__get_weather"
 
 // Original tool from calendar server: "get_events" 
-// Prefixed tool: "calendar.get_events"
+// Prefixed tool: "calendar__get_events"
 ```
 
 ### Tool Discovery and Registration
@@ -109,11 +111,12 @@ Tools from each server are prefixed with the user-provided server name to avoid 
 class MCPConnection {
   private async discoverTools(): Promise<Tool[]> {
     const tools = await this.client.listTools();
+    const normalizedServerName = normalizeServerName(this.name);
     return tools.map(tool => ({
       ...tool,
       function: {
         ...tool.function,
-        name: `${this.name}.${tool.function.name}`, // Add prefix
+        name: `${normalizedServerName}__${tool.function.name}`, // Add prefix
         description: `[${this.name}] ${tool.function.description}`, // Add server context
       }
     }));
